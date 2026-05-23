@@ -1,47 +1,96 @@
 import { useEffect, useState } from "react"
+
 import { supabase } from "./lib/supabase"
 
-import Login from "./Login"
+import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
 
 export default function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
 
+  const [user, setUser] =
+    useState(null)
+
+  const [loading, setLoading] =
+    useState(true)
+
+  // 🔥 CARREGAR SESSÃO
   useEffect(() => {
-    // 🔐 pega sessão atual ao abrir o app
-    async function loadUser() {
-      const { data } = await supabase.auth.getSession()
-      setUser(data.session?.user || null)
+
+    async function carregarSessao() {
+
+      const {
+        data,
+      } = await supabase.auth.getSession()
+
+      setUser(
+        data.session?.user || null
+      )
+
       setLoading(false)
     }
 
-    loadUser()
+    carregarSessao()
 
-    // 👂 escuta mudanças de login/logout em tempo real
+    // 🔥 OUVIR LOGIN/LOGOUT
     const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null)
-    })
+      data: listener,
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
 
-    return () => subscription.unsubscribe()
+        setUser(
+          session?.user || null
+        )
+
+      }
+    )
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+
   }, [])
 
-  // ⏳ loading inicial
+  // 🔥 LOGOUT
+  async function sair() {
+
+    await supabase.auth.signOut()
+
+    setUser(null)
+  }
+
+  // 🔥 LOADING
   if (loading) {
+
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Carregando...
+
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+
+        <div className="text-2xl font-bold">
+          Carregando...
+        </div>
+
       </div>
+
     )
   }
 
-  // 🔓 não logado → login
+  // 🔥 LOGIN
   if (!user) {
-    return <Login setUser={setUser} />
+
+    return (
+      <Login
+        onLogin={setUser}
+      />
+    )
   }
 
-  // 🔐 logado → dashboard
-  return <Dashboard user={user} />
+  // 🔥 DASHBOARD
+  return (
+
+    <Dashboard
+      user={user}
+      onLogout={sair}
+    />
+
+  )
 }

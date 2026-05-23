@@ -1,13 +1,13 @@
 import { useState } from "react"
 
-// PÁGINAS PRINCIPAIS
+// PRINCIPAIS
 import Tanques from "./Tanques"
 import Biometria from "./Biometria"
 import Custos from "./Custos"
 import Vendas from "./Vendas"
 import Relatorios from "./Relatorios"
 
-// NOVAS PÁGINAS
+// NOVOS
 import Mortalidade from "./Mortalidade"
 import EstoqueRacao from "./EstoqueRacao"
 import Lotes from "./Lotes"
@@ -31,6 +31,7 @@ export default function Dashboard({
   }) {
 
     return (
+
       <button
         onClick={() =>
           setAba(valor)
@@ -41,8 +42,11 @@ export default function Dashboard({
             : "bg-white text-black shadow"
         }`}
       >
+
         {nome}
+
       </button>
+
     )
   }
 
@@ -72,7 +76,9 @@ export default function Dashboard({
           onClick={onLogout}
           className="bg-red-500 hover:bg-red-600 px-5 py-2 rounded-xl font-bold"
         >
+
           Sair
+
         </button>
 
       </div>
@@ -166,7 +172,7 @@ export default function Dashboard({
           <Relatorios user={user} />
         }
 
-        {/* NOVOS MÓDULOS */}
+        {/* NOVOS */}
         {aba === "mortalidade" &&
           <Mortalidade user={user} />
         }
