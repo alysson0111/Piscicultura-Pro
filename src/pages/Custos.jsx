@@ -7,11 +7,11 @@ export default function Custos({ user }) {
   const [descricao, setDescricao] = useState("")
   const [tanque, setTanque] = useState("")
   const [dataCusto, setDataCusto] = useState("")
-
   const [estoqueId, setEstoqueId] = useState("")
   const [quantidadeBaixa, setQuantidadeBaixa] = useState("")
   const [valorManual, setValorManual] = useState("")
   const [loading, setLoading] = useState(false)
+  const [editando, setEditando] = useState(null)
 
   const [dados, setDados] = useState([])
   const [tanques, setTanques] = useState([])
@@ -77,7 +77,7 @@ export default function Custos({ user }) {
     e.preventDefault()
     setLoading(true)
 
-    if (tipoCusto === "estoque") {
+    if (tipoCusto === "estoque" && !editando) {
       if (!itemEstoque) {
         alert("Selecione um produto do estoque.")
         setLoading(false)
@@ -98,30 +98,26 @@ export default function Custos({ user }) {
       descricao,
       tanque,
       data_custo: dataCusto,
-
       estoque_id: tipoCusto === "estoque" ? estoqueId : null,
-
       quantidade_baixa:
         tipoCusto === "estoque" ? Number(quantidadeBaixa) : 0,
-
       peso_total_baixa:
         tipoCusto === "estoque" ? Number(pesoTotalBaixa) : 0,
-
       quantidade_racao:
         categoria === "Ração" ? Number(pesoTotalBaixa) : 0,
-
       valor_unitario:
         tipoCusto === "estoque"
           ? Number(itemEstoque?.valor_unitario || 0)
           : Number(valorManual || 0),
-
       valor: Number(valorTotal),
       valor_total: Number(valorTotal),
     }
 
-    const { error } = await supabase
-      .from("custos")
-      .insert([payload])
+    const query = editando
+      ? supabase.from("custos").update(payload).eq("id", editando)
+      : supabase.from("custos").insert([payload])
+
+    const { error } = await query
 
     if (error) {
       alert(error.message)
@@ -129,7 +125,7 @@ export default function Custos({ user }) {
       return
     }
 
-    if (tipoCusto === "estoque") {
+    if (tipoCusto === "estoque" && !editando) {
       const novoSaldo =
         Number(itemEstoque.quantidade || 0) -
         Number(quantidadeBaixa || 0)
@@ -158,10 +154,28 @@ export default function Custos({ user }) {
     await carregarDados()
     setLoading(false)
 
-    alert("Custo salvo com sucesso!")
+    alert(editando ? "Custo atualizado!" : "Custo salvo com sucesso!")
+  }
+
+  function editar(item) {
+    setEditando(item.id)
+    setTipoCusto(item.tipo_custo || "estoque")
+    setCategoria(item.categoria || "Ração")
+    setDescricao(item.descricao || "")
+    setTanque(item.tanque || "")
+    setDataCusto(item.data_custo || "")
+    setEstoqueId(item.estoque_id || "")
+    setQuantidadeBaixa(item.quantidade_baixa || "")
+    setValorManual(item.valor_total || item.valor || "")
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    })
   }
 
   function limpar() {
+    setEditando(null)
     setTipoCusto("estoque")
     setCategoria("Ração")
     setDescricao("")
@@ -198,31 +212,6 @@ export default function Custos({ user }) {
             peso_total: novoPesoTotal,
           })
           .eq("id", item.estoque_id)
-      } else {
-        await supabase
-          .from("estoque")
-          .insert([
-            {
-              id: item.estoque_id,
-              user_id: user.id,
-              produto: item.descricao,
-              categoria: item.categoria,
-              quantidade: Number(item.quantidade_baixa || 0),
-              peso_embalagem:
-                item.quantidade_baixa > 0
-                  ? Number(item.peso_total_baixa || 0) /
-                    Number(item.quantidade_baixa || 1)
-                  : 0,
-              peso_total: Number(item.peso_total_baixa || 0),
-              unidade: "sacos",
-              valor_unitario: Number(item.valor_unitario || 0),
-              valor_total: Number(
-                Number(item.quantidade_baixa || 0) *
-                  Number(item.valor_unitario || 0)
-              ),
-              data_entrada: item.data_custo,
-            },
-          ])
       }
     }
 
@@ -293,7 +282,8 @@ export default function Custos({ user }) {
               value={estoqueId}
               onChange={(e) => selecionarProduto(e.target.value)}
               className="w-full border p-3 rounded-xl mt-2"
-              required
+              required={!editando}
+              disabled={editando}
             >
               <option value="">Selecione</option>
 
@@ -397,14 +387,24 @@ export default function Custos({ user }) {
           />
         </div>
 
-        <div className="flex items-end">
+        <div className="flex items-end gap-2">
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl"
           >
-            {loading ? "Salvando..." : "Salvar"}
+            {loading ? "Salvando..." : editando ? "Atualizar" : "Salvar"}
           </button>
+
+          {editando && (
+            <button
+              type="button"
+              onClick={limpar}
+              className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold p-3 rounded-xl"
+            >
+              Cancelar
+            </button>
+          )}
         </div>
       </form>
 
@@ -444,12 +444,21 @@ export default function Custos({ user }) {
                   R$ {moeda(item.valor_total || item.valor)}
                 </td>
                 <td className="p-3">
-                  <button
-                    onClick={() => excluir(item)}
-                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
-                  >
-                    Excluir
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => editar(item)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl"
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      onClick={() => excluir(item)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
