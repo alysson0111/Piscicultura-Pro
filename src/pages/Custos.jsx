@@ -77,14 +77,14 @@ export default function Custos({ user }) {
     e.preventDefault()
     setLoading(true)
 
-    if (tipoCusto === "estoque" && !editando) {
+    if (tipoCusto === "estoque") {
       if (!itemEstoque) {
         alert("Selecione um produto do estoque.")
         setLoading(false)
         return
       }
 
-      if (Number(quantidadeBaixa) > Number(itemEstoque.quantidade)) {
+      if (!editando && Number(quantidadeBaixa) > Number(itemEstoque.quantidade)) {
         alert("Quantidade maior que o saldo em estoque.")
         setLoading(false)
         return
@@ -282,8 +282,7 @@ export default function Custos({ user }) {
               value={estoqueId}
               onChange={(e) => selecionarProduto(e.target.value)}
               className="w-full border p-3 rounded-xl mt-2"
-              required={!editando}
-              disabled={editando}
+              required
             >
               <option value="">Selecione</option>
 

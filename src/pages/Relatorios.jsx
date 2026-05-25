@@ -34,12 +34,21 @@ export default function Relatorios({ user }) {
     })
   }
 
+  function normalizar(texto) {
+    return String(texto || "")
+      .trim()
+      .toLowerCase()
+  }
+
   async function carregarDados() {
     try {
       const { data: dadosTanques } = await supabase
         .from("tanques")
         .select("nome")
         .eq("user_id", user.id)
+
+      const nomesTanques =
+        dadosTanques?.map((t) => t.nome) || []
 
       setTanques(dadosTanques || [])
 
@@ -63,19 +72,26 @@ export default function Relatorios({ user }) {
         .select("*")
         .eq("user_id", user.id)
 
-      const filtrarTanque = (lista) => {
+      function filtrarTanque(lista) {
+        const listaSegura = lista || []
+
+        const somenteTanquesExistentes =
+          listaSegura.filter((item) =>
+            nomesTanques.some(
+              (nome) =>
+                normalizar(nome) ===
+                normalizar(item.tanque)
+            )
+          )
+
         if (tanqueSelecionado === "todos") {
-          return lista || []
+          return somenteTanquesExistentes
         }
 
-        return (lista || []).filter(
+        return somenteTanquesExistentes.filter(
           (item) =>
-            String(item.tanque || "")
-              .trim()
-              .toLowerCase() ===
-            String(tanqueSelecionado || "")
-              .trim()
-              .toLowerCase()
+            normalizar(item.tanque) ===
+            normalizar(tanqueSelecionado)
         )
       }
 
@@ -95,15 +111,13 @@ export default function Relatorios({ user }) {
       let peixes = 0
 
       if (tanqueSelecionado === "todos") {
-        const tanquesUnicos = [
-          ...new Set(
-            biometriaFiltrada.map((b) => b.tanque)
-          ),
-        ]
-
-        tanquesUnicos.forEach((tanque) => {
+        nomesTanques.forEach((nomeTanque) => {
           const ultima = biometriaFiltrada
-            .filter((b) => b.tanque === tanque)
+            .filter(
+              (b) =>
+                normalizar(b.tanque) ===
+                normalizar(nomeTanque)
+            )
             .sort(
               (a, b) =>
                 new Date(b.data_biometria) -
@@ -163,9 +177,8 @@ export default function Relatorios({ user }) {
         custosFiltrados
           .filter(
             (item) =>
-              String(item.categoria || "")
-                .trim()
-                .toLowerCase() === "ração"
+              normalizar(item.categoria) ===
+              "ração"
           )
           .reduce(
             (acc, item) =>
@@ -179,7 +192,7 @@ export default function Relatorios({ user }) {
           )
 
       const rca =
-        biomassa > 0
+        biomassa > 0 && totalRacao > 0
           ? totalRacao / biomassa
           : 0
 

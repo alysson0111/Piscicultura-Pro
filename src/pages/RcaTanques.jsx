@@ -1,62 +1,44 @@
-import {
-  useEffect,
-  useState,
-} from "react"
-
+import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
-export default function RcaTanques({
-  user,
-}) {
-  const [dados, setDados] =
-    useState([])
-
-  const [tanques, setTanques] =
-    useState([])
-
-  const [
-    tanqueSelecionado,
-    setTanqueSelecionado,
-  ] = useState("todos")
+export default function RcaTanques({ user }) {
+  const [dados, setDados] = useState([])
+  const [tanques, setTanques] = useState([])
+  const [tanqueSelecionado, setTanqueSelecionado] = useState("todos")
 
   function formatar(valor) {
-    return Number(valor || 0).toLocaleString(
-      "pt-BR",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    )
+    return Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
   }
 
   async function carregarDados() {
     try {
-      const { data: tanquesData } =
-        await supabase
-          .from("tanques")
-          .select("*")
-          .eq("user_id", user.id)
+      const { data: tanquesData } = await supabase
+        .from("tanques")
+        .select("*")
+        .eq("user_id", user.id)
 
-      const { data: biometrias } =
-        await supabase
-          .from("biometria")
-          .select("*")
-          .eq("user_id", user.id)
+      const { data: biometrias } = await supabase
+        .from("biometria")
+        .select("*")
+        .eq("user_id", user.id)
 
-      const { data: custos } =
-        await supabase
-          .from("custos")
-          .select("*")
-          .eq("user_id", user.id)
+      const { data: custos } = await supabase
+        .from("custos")
+        .select("*")
+        .eq("user_id", user.id)
 
-      const listaTanques =
-        tanquesData || []
+      const { data: lotes } = await supabase
+        .from("lotes")
+        .select("*")
+        .eq("user_id", user.id)
 
-      const listaBiometrias =
-        biometrias || []
-
-      const listaCustos =
-        custos || []
+      const listaTanques = tanquesData || []
+      const listaBiometrias = biometrias || []
+      const listaCustos = custos || []
+      const listaLotes = lotes || []
 
       setTanques(listaTanques)
 
@@ -65,87 +47,75 @@ export default function RcaTanques({
           ? listaTanques
           : listaTanques.filter(
               (t) =>
-                t.nome ===
-                tanqueSelecionado
+                String(t.nome || "").trim().toLowerCase() ===
+                String(tanqueSelecionado || "").trim().toLowerCase()
             )
 
-      const resultado =
-        tanquesFiltrados.map(
-          (tanque) => {
-            const biometriaTanque =
-              listaBiometrias
-                .filter(
-                  (b) =>
-                    String(
-                      b.tanque || ""
-                    )
-                      .trim()
-                      .toLowerCase() ===
-                    String(
-                      tanque.nome || ""
-                    )
-                      .trim()
-                      .toLowerCase()
-                )
-                .sort(
-                  (a, b) =>
-                    new Date(
-                      b.data_biometria
-                    ) -
-                    new Date(
-                      a.data_biometria
-                    )
-                )
+      const resultado = tanquesFiltrados.map((tanque) => {
+        const nomeTanque = String(tanque.nome || "").trim().toLowerCase()
 
-            const ultima =
-              biometriaTanque[0]
+        const loteTanque = listaLotes
+          .filter(
+            (l) =>
+              String(l.tanque || "").trim().toLowerCase() === nomeTanque
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.data_povoamento) -
+              new Date(a.data_povoamento)
+          )[0]
 
-            const biomassa =
+        const biomassaInicial = Number(loteTanque?.biomassa || 0)
+
+        const ultimaBiometria = listaBiometrias
+          .filter(
+            (b) =>
+              String(b.tanque || "").trim().toLowerCase() === nomeTanque
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.data_biometria) -
+              new Date(a.data_biometria)
+          )[0]
+
+        const biomassaAtual = Number(ultimaBiometria?.biomassa || 0)
+
+        const ganhoBiomassa =
+          biomassaAtual - biomassaInicial > 0
+            ? biomassaAtual - biomassaInicial
+            : 0
+
+        const racao = listaCustos
+          .filter(
+            (c) =>
+              String(c.tanque || "").trim().toLowerCase() === nomeTanque &&
+              String(c.categoria || "").trim().toLowerCase() === "ração"
+          )
+          .reduce(
+            (acc, item) =>
+              acc +
               Number(
-                ultima?.biomassa || 0
-              )
-
-            const racao =
-              listaCustos
-                .filter(
-                  (c) =>
-                    String(
-                      c.tanque || ""
-                    )
-                      .trim()
-                      .toLowerCase() ===
-                      String(
-                        tanque.nome || ""
-                      )
-                        .trim()
-                        .toLowerCase() &&
-                    c.categoria ===
-                      "Ração"
-                )
-                .reduce(
-                  (acc, item) =>
-                    acc +
-                    Number(
-                      item.quantidade_racao ||
-                        item.peso_total_baixa ||
-                        0
-                    ),
+                item.peso_total_baixa ||
+                  item.quantidade_racao ||
                   0
-                )
+              ),
+            0
+          )
 
-            const rca =
-              biomassa > 0
-                ? racao / biomassa
-                : 0
+        const rca =
+          ganhoBiomassa > 0
+            ? racao / ganhoBiomassa
+            : 0
 
-            return {
-              tanque: tanque.nome,
-              biomassa,
-              racao,
-              rca,
-            }
-          }
-        )
+        return {
+          tanque: tanque.nome,
+          biomassaInicial,
+          biomassaAtual,
+          ganhoBiomassa,
+          racao,
+          rca,
+        }
+      })
 
       setDados(resultado)
     } catch (erro) {
@@ -154,41 +124,32 @@ export default function RcaTanques({
   }
 
   useEffect(() => {
-    if (user) {
-      carregarDados()
-    }
+    if (user) carregarDados()
   }, [user, tanqueSelecionado])
 
-  const biomassaTotal =
-    dados.reduce(
-      (acc, item) =>
-        acc +
-        Number(
-          item.biomassa || 0
-        ),
-      0
-    )
+  const biomassaTotal = dados.reduce(
+    (acc, item) => acc + Number(item.biomassaAtual || 0),
+    0
+  )
 
-  const racaoTotal =
-    dados.reduce(
-      (acc, item) =>
-        acc +
-        Number(
-          item.racao || 0
-        ),
-      0
-    )
+  const racaoTotal = dados.reduce(
+    (acc, item) => acc + Number(item.racao || 0),
+    0
+  )
+
+  const ganhoTotal = dados.reduce(
+    (acc, item) => acc + Number(item.ganhoBiomassa || 0),
+    0
+  )
 
   const rcaMedio =
-    biomassaTotal > 0
-      ? racaoTotal / biomassaTotal
+    ganhoTotal > 0
+      ? racaoTotal / ganhoTotal
       : 0
 
   return (
     <div className="space-y-6">
-
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
         <div>
           <h1 className="text-3xl font-bold">
             🧮 RCA por Tanque
@@ -206,11 +167,7 @@ export default function RcaTanques({
 
           <select
             value={tanqueSelecionado}
-            onChange={(e) =>
-              setTanqueSelecionado(
-                e.target.value
-              )
-            }
+            onChange={(e) => setTanqueSelecionado(e.target.value)}
             className="w-full border p-3 rounded-xl mt-2"
           >
             <option value="todos">
@@ -218,30 +175,22 @@ export default function RcaTanques({
             </option>
 
             {tanques.map((tanque) => (
-              <option
-                key={tanque.id}
-                value={tanque.nome}
-              >
+              <option key={tanque.id} value={tanque.nome}>
                 {tanque.nome}
               </option>
             ))}
           </select>
         </div>
-
       </div>
 
-      {/* RESUMO ACIMA DA TABELA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
         <div className="bg-blue-100 p-5 rounded-2xl shadow">
           <p className="text-blue-700">
             Biomassa Total
           </p>
 
           <h2 className="text-3xl font-bold text-blue-700 mt-2">
-            {formatar(
-              biomassaTotal
-            )} kg
+            {formatar(biomassaTotal)} kg
           </h2>
         </div>
 
@@ -251,9 +200,7 @@ export default function RcaTanques({
           </p>
 
           <h2 className="text-3xl font-bold text-green-700 mt-2">
-            {formatar(
-              racaoTotal
-            )} kg
+            {formatar(racaoTotal)} kg
           </h2>
         </div>
 
@@ -263,12 +210,9 @@ export default function RcaTanques({
           </p>
 
           <h2 className="text-3xl font-bold text-purple-700 mt-2">
-            {formatar(
-              rcaMedio
-            )}
+            {formatar(rcaMedio)}
           </h2>
         </div>
-
       </div>
 
       {dados.length === 0 && (
@@ -283,66 +227,53 @@ export default function RcaTanques({
         <table className="w-full">
           <thead>
             <tr className="border-b bg-slate-100">
-              <th className="p-4 text-left">
-                Tanque
-              </th>
-              <th className="p-4 text-left">
-                Biomassa
-              </th>
-              <th className="p-4 text-left">
-                Ração
-              </th>
-              <th className="p-4 text-left">
-                RCA
-              </th>
-              <th className="p-4 text-left">
-                Status
-              </th>
+              <th className="p-4 text-left">Tanque</th>
+              <th className="p-4 text-left">Biomassa Inicial</th>
+              <th className="p-4 text-left">Biomassa Atual</th>
+              <th className="p-4 text-left">Ganho Biomassa</th>
+              <th className="p-4 text-left">Ração</th>
+              <th className="p-4 text-left">RCA</th>
+              <th className="p-4 text-left">Status</th>
             </tr>
           </thead>
 
           <tbody>
             {dados.map((item, index) => (
-              <tr
-                key={index}
-                className="border-b hover:bg-slate-50"
-              >
-                <td className="p-4 font-bold">
-                  {item.tanque}
+              <tr key={index} className="border-b hover:bg-slate-50">
+                <td className="p-4 font-bold">{item.tanque}</td>
+
+                <td className="p-4">
+                  {formatar(item.biomassaInicial)} kg
                 </td>
 
                 <td className="p-4">
-                  {formatar(
-                    item.biomassa
-                  )} kg
+                  {formatar(item.biomassaAtual)} kg
                 </td>
 
                 <td className="p-4">
-                  {formatar(
-                    item.racao
-                  )} kg
+                  {formatar(item.ganhoBiomassa)} kg
+                </td>
+
+                <td className="p-4">
+                  {formatar(item.racao)} kg
                 </td>
 
                 <td className="p-4 font-bold">
-                  {formatar(
-                    item.rca
+                  {formatar(item.rca)}
+                </td>
+
+                <td className="p-4">
+                  {item.rca <= 1.5 && item.rca > 0 && (
+                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-xl font-bold">
+                      Excelente
+                    </span>
                   )}
-                </td>
 
-                <td className="p-4">
-                  {item.rca <= 1.5 &&
-                    item.rca > 0 && (
-                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-xl font-bold">
-                        Excelente
-                      </span>
-                    )}
-
-                  {item.rca > 1.5 &&
-                    item.rca <= 2 && (
-                      <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-xl font-bold">
-                        Bom
-                      </span>
-                    )}
+                  {item.rca > 1.5 && item.rca <= 2 && (
+                    <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-xl font-bold">
+                      Bom
+                    </span>
+                  )}
 
                   {item.rca > 2 && (
                     <span className="bg-red-100 text-red-700 px-3 py-1 rounded-xl font-bold">
