@@ -21,6 +21,12 @@ export default function Mortalidade({ user }) {
   const [data, setData] =
     useState("")
 
+  const [loading, setLoading] =
+    useState(false)
+
+  const [editando, setEditando] =
+    useState(null)
+
   async function carregarDados() {
 
     try {
@@ -54,9 +60,12 @@ export default function Mortalidade({ user }) {
           "user_id",
           user.id
         )
-        .order("data", {
-          ascending: false,
-        })
+        .order(
+          "data_mortalidade",
+          {
+            ascending: false,
+          }
+        )
 
       // 🔥 SOMENTE TANQUES EXISTENTES
       const validas =
@@ -103,33 +112,93 @@ export default function Mortalidade({ user }) {
 
     e.preventDefault()
 
+    setLoading(true)
+
+    const payload = {
+      user_id: user.id,
+      tanque,
+      quantidade:
+        Number(
+          quantidade
+        ),
+      motivo,
+      data_mortalidade: data,
+    }
+
+    const query = editando
+
+      ? supabase
+          .from("mortalidade")
+          .update(payload)
+          .eq(
+            "id",
+            editando
+          )
+
+      : supabase
+          .from("mortalidade")
+          .insert([payload])
+
     const { error } =
-      await supabase
-        .from("mortalidade")
-        .insert([
-          {
-            user_id: user.id,
-            tanque,
-            quantidade:
-              Number(
-                quantidade
-              ),
-            motivo,
-            data,
-          },
-        ])
+      await query
 
     if (error) {
       alert(error.message)
+      setLoading(false)
       return
     }
 
-    setTanque("")
-    setQuantidade("")
-    setMotivo("")
-    setData("")
+    limpar()
 
     carregarDados()
+
+    setLoading(false)
+
+    alert(
+      editando
+        ? "Registro atualizado!"
+        : "Registro salvo!"
+    )
+  }
+
+  function editar(item) {
+
+    setEditando(item.id)
+
+    setTanque(
+      item.tanque || ""
+    )
+
+    setQuantidade(
+      item.quantidade || ""
+    )
+
+    setMotivo(
+      item.motivo || ""
+    )
+
+    setData(
+      item.data_mortalidade ||
+        ""
+    )
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    })
+  }
+
+  function limpar() {
+
+    setEditando(null)
+
+    setTanque("")
+
+    setQuantidade("")
+
+    setMotivo("")
+
+    setData("")
   }
 
   async function excluir(id) {
@@ -279,16 +348,35 @@ export default function Mortalidade({ user }) {
 
         </div>
 
-        <div className="md:col-span-2 lg:col-span-4">
+        <div className="md:col-span-2 lg:col-span-4 flex gap-3">
 
           <button
             type="submit"
+            disabled={loading}
             className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold"
           >
 
-            Salvar
+            {loading
+              ? "Salvando..."
+              : editando
+              ? "Atualizar"
+              : "Salvar"}
 
           </button>
+
+          {editando && (
+
+            <button
+              type="button"
+              onClick={limpar}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-xl font-bold"
+            >
+
+              Cancelar
+
+            </button>
+
+          )}
 
         </div>
 
@@ -342,7 +430,9 @@ export default function Mortalidade({ user }) {
                 >
 
                   <td className="p-3">
-                    {item.data}
+                    {
+                      item.data_mortalidade
+                    }
                   </td>
 
                   <td className="p-3">
@@ -359,18 +449,35 @@ export default function Mortalidade({ user }) {
 
                   <td className="p-3">
 
-                    <button
-                      onClick={() =>
-                        excluir(
-                          item.id
-                        )
-                      }
-                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
-                    >
+                    <div className="flex gap-2">
 
-                      Excluir
+                      <button
+                        onClick={() =>
+                          editar(
+                            item
+                          )
+                        }
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl"
+                      >
 
-                    </button>
+                        Editar
+
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          excluir(
+                            item.id
+                          )
+                        }
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+                      >
+
+                        Excluir
+
+                      </button>
+
+                    </div>
 
                   </td>
 

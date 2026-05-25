@@ -98,17 +98,23 @@ export default function Custos({ user }) {
       descricao,
       tanque,
       data_custo: dataCusto,
+
       estoque_id: tipoCusto === "estoque" ? estoqueId : null,
+
       quantidade_baixa:
         tipoCusto === "estoque" ? Number(quantidadeBaixa) : 0,
+
       peso_total_baixa:
         tipoCusto === "estoque" ? Number(pesoTotalBaixa) : 0,
+
       quantidade_racao:
         categoria === "Ração" ? Number(pesoTotalBaixa) : 0,
+
       valor_unitario:
         tipoCusto === "estoque"
           ? Number(itemEstoque?.valor_unitario || 0)
           : Number(valorManual || 0),
+
       valor: Number(valorTotal),
       valor_total: Number(valorTotal),
     }
@@ -132,13 +138,20 @@ export default function Custos({ user }) {
         novoSaldo *
         Number(itemEstoque.peso_embalagem || 0)
 
-      await supabase
-        .from("estoque")
-        .update({
-          quantidade: novoSaldo,
-          peso_total: novoPesoTotal,
-        })
-        .eq("id", estoqueId)
+      if (novoSaldo <= 0) {
+        await supabase
+          .from("estoque")
+          .delete()
+          .eq("id", estoqueId)
+      } else {
+        await supabase
+          .from("estoque")
+          .update({
+            quantidade: novoSaldo,
+            peso_total: novoPesoTotal,
+          })
+          .eq("id", estoqueId)
+      }
     }
 
     limpar()
@@ -185,6 +198,31 @@ export default function Custos({ user }) {
             peso_total: novoPesoTotal,
           })
           .eq("id", item.estoque_id)
+      } else {
+        await supabase
+          .from("estoque")
+          .insert([
+            {
+              id: item.estoque_id,
+              user_id: user.id,
+              produto: item.descricao,
+              categoria: item.categoria,
+              quantidade: Number(item.quantidade_baixa || 0),
+              peso_embalagem:
+                item.quantidade_baixa > 0
+                  ? Number(item.peso_total_baixa || 0) /
+                    Number(item.quantidade_baixa || 1)
+                  : 0,
+              peso_total: Number(item.peso_total_baixa || 0),
+              unidade: "sacos",
+              valor_unitario: Number(item.valor_unitario || 0),
+              valor_total: Number(
+                Number(item.quantidade_baixa || 0) *
+                  Number(item.valor_unitario || 0)
+              ),
+              data_entrada: item.data_custo,
+            },
+          ])
       }
     }
 
