@@ -97,18 +97,8 @@ export default function Dashboard({
         />
 
         <Botao
-          nome="Custos"
-          valor="custos"
-        />
-
-        <Botao
           nome="Vendas"
           valor="vendas"
-        />
-
-        <Botao
-          nome="Relatórios"
-          valor="relatorios"
         />
 
         <Botao
@@ -116,9 +106,16 @@ export default function Dashboard({
           valor="mortalidade"
         />
 
+        {/* 🔥 ESTOQUE */}
         <Botao
           nome="Estoque"
           valor="estoque"
+        />
+
+        {/* 🔥 CUSTOS AO LADO */}
+        <Botao
+          nome="Custos"
+          valor="custos"
         />
 
         <Botao
@@ -144,6 +141,12 @@ export default function Dashboard({
         <Botao
           nome="RCA Tanques"
           valor="rca"
+        />
+
+        {/* 🔥 RELATÓRIOS POR ÚLTIMO */}
+        <Botao
+          nome="Relatórios"
+          valor="relatorios"
         />
 
       </div>

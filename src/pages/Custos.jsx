@@ -2,319 +2,422 @@ import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
 export default function Custos({ user }) {
+  const [tipoCusto, setTipoCusto] = useState("estoque")
+  const [categoria, setCategoria] = useState("Ração")
+  const [descricao, setDescricao] = useState("")
+  const [tanque, setTanque] = useState("")
+  const [dataCusto, setDataCusto] = useState("")
 
-  const [custos, setCustos] = useState([])
+  const [estoqueId, setEstoqueId] = useState("")
+  const [quantidadeBaixa, setQuantidadeBaixa] = useState("")
+  const [valorManual, setValorManual] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const [editandoId, setEditandoId] =
-    useState(null)
+  const [dados, setDados] = useState([])
+  const [tanques, setTanques] = useState([])
+  const [estoque, setEstoque] = useState([])
 
-  const [form, setForm] = useState({
-    tipo: "",
-    descricao: "",
-    valor: "",
-    data_custo: "",
-  })
+  const itemEstoque = estoque.find((item) => item.id === estoqueId)
 
-  // 🔥 CARREGAR CUSTOS
-  async function carregarCustos() {
+  const pesoTotalBaixa =
+    Number(quantidadeBaixa || 0) *
+    Number(itemEstoque?.peso_embalagem || 0)
 
-    const { data, error } = await supabase
+  const valorEstoque =
+    Number(quantidadeBaixa || 0) *
+    Number(itemEstoque?.valor_unitario || 0)
+
+  const valorTotal =
+    tipoCusto === "estoque"
+      ? valorEstoque
+      : Number(valorManual || 0)
+
+  function moeda(valor) {
+    return Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  async function carregarDados() {
+    const { data: custos } = await supabase
       .from("custos")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", {
-        ascending: false,
-      })
+      .order("data_custo", { ascending: false })
+
+    const { data: dadosTanques } = await supabase
+      .from("tanques")
+      .select("nome")
+      .eq("user_id", user.id)
+
+    const { data: dadosEstoque } = await supabase
+      .from("estoque")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("produto", { ascending: true })
+
+    setDados(custos || [])
+    setTanques(dadosTanques || [])
+    setEstoque(dadosEstoque || [])
+  }
+
+  function selecionarProduto(id) {
+    setEstoqueId(id)
+
+    const item = estoque.find((e) => e.id === id)
+
+    if (item) {
+      setDescricao(item.produto)
+      setCategoria(item.categoria || "Ração")
+    }
+  }
+
+  async function salvarCusto(e) {
+    e.preventDefault()
+    setLoading(true)
+
+    if (tipoCusto === "estoque") {
+      if (!itemEstoque) {
+        alert("Selecione um produto do estoque.")
+        setLoading(false)
+        return
+      }
+
+      if (Number(quantidadeBaixa) > Number(itemEstoque.quantidade)) {
+        alert("Quantidade maior que o saldo em estoque.")
+        setLoading(false)
+        return
+      }
+    }
+
+    const payload = {
+      user_id: user.id,
+      tipo_custo: tipoCusto,
+      categoria,
+      descricao,
+      tanque,
+      data_custo: dataCusto,
+      estoque_id: tipoCusto === "estoque" ? estoqueId : null,
+      quantidade_baixa:
+        tipoCusto === "estoque" ? Number(quantidadeBaixa) : 0,
+      peso_total_baixa:
+        tipoCusto === "estoque" ? Number(pesoTotalBaixa) : 0,
+      quantidade_racao:
+        categoria === "Ração" ? Number(pesoTotalBaixa) : 0,
+      valor_unitario:
+        tipoCusto === "estoque"
+          ? Number(itemEstoque?.valor_unitario || 0)
+          : Number(valorManual || 0),
+      valor: Number(valorTotal),
+      valor_total: Number(valorTotal),
+    }
+
+    const { error } = await supabase
+      .from("custos")
+      .insert([payload])
 
     if (error) {
-      console.log(error)
+      alert(error.message)
+      setLoading(false)
       return
     }
 
-    setCustos(data)
-  }
+    if (tipoCusto === "estoque") {
+      const novoSaldo =
+        Number(itemEstoque.quantidade || 0) -
+        Number(quantidadeBaixa || 0)
 
-  useEffect(() => {
-    if (user) {
-      carregarCustos()
-    }
-  }, [user])
+      const novoPesoTotal =
+        novoSaldo *
+        Number(itemEstoque.peso_embalagem || 0)
 
-  // 🔥 SALVAR
-  async function salvarCusto(e) {
-    e.preventDefault()
-
-    // EDITAR
-    if (editandoId) {
-
-      const { error } = await supabase
-        .from("custos")
+      await supabase
+        .from("estoque")
         .update({
-          tipo: form.tipo,
-          descricao: form.descricao,
-          valor: Number(form.valor),
-          data_custo: form.data_custo,
+          quantidade: novoSaldo,
+          peso_total: novoPesoTotal,
         })
-        .eq("id", editandoId)
-
-      if (error) {
-        console.log(error)
-        alert(error.message)
-        return
-      }
-
-      setEditandoId(null)
+        .eq("id", estoqueId)
     }
 
-    // NOVO
-    else {
+    limpar()
+    await carregarDados()
+    setLoading(false)
 
-      const { error } = await supabase
-        .from("custos")
-        .insert([
-          {
-            user_id: user.id,
-            tipo: form.tipo,
-            descricao: form.descricao,
-            valor: Number(form.valor),
-            data_custo: form.data_custo,
-          },
-        ])
-
-      if (error) {
-        console.log(error)
-        alert(error.message)
-        return
-      }
-    }
-
-    // LIMPAR FORM
-    setForm({
-      tipo: "",
-      descricao: "",
-      valor: "",
-      data_custo: "",
-    })
-
-    carregarCustos()
+    alert("Custo salvo com sucesso!")
   }
 
-  // 🔥 EXCLUIR
-  async function excluirCusto(id) {
+  function limpar() {
+    setTipoCusto("estoque")
+    setCategoria("Ração")
+    setDescricao("")
+    setTanque("")
+    setDataCusto("")
+    setEstoqueId("")
+    setQuantidadeBaixa("")
+    setValorManual("")
+  }
 
-    const confirmar = confirm(
-      "Deseja excluir este custo?"
-    )
+  async function excluir(item) {
+    if (!confirm("Excluir custo?")) return
 
-    if (!confirmar) return
+    if (item.tipo_custo === "estoque" && item.estoque_id) {
+      const { data: produtoEstoque } = await supabase
+        .from("estoque")
+        .select("*")
+        .eq("id", item.estoque_id)
+        .single()
+
+      if (produtoEstoque) {
+        const novoSaldo =
+          Number(produtoEstoque.quantidade || 0) +
+          Number(item.quantidade_baixa || 0)
+
+        const novoPesoTotal =
+          novoSaldo *
+          Number(produtoEstoque.peso_embalagem || 0)
+
+        await supabase
+          .from("estoque")
+          .update({
+            quantidade: novoSaldo,
+            peso_total: novoPesoTotal,
+          })
+          .eq("id", item.estoque_id)
+      }
+    }
 
     const { error } = await supabase
       .from("custos")
       .delete()
-      .eq("id", id)
+      .eq("id", item.id)
 
     if (error) {
-      console.log(error)
+      alert(error.message)
       return
     }
 
-    carregarCustos()
+    carregarDados()
   }
 
-  // 🔥 EDITAR
-  function editarCusto(item) {
-
-    setEditandoId(item.id)
-
-    setForm({
-      tipo: item.tipo,
-      descricao: item.descricao,
-      valor: item.valor,
-      data_custo: item.data_custo,
-    })
-  }
+  useEffect(() => {
+    if (user) carregarDados()
+  }, [user])
 
   return (
     <div className="space-y-6">
-
-      {/* TÍTULO */}
-      <h1 className="text-3xl font-bold">
-        💰 Custos
-      </h1>
-
-      {/* FORM */}
-      <form
-        onSubmit={salvarCusto}
-        className="bg-slate-100 p-6 rounded-2xl space-y-4"
-      >
-
-        {/* TIPO */}
-        <select
-          className="w-full border p-3 rounded-xl"
-          value={form.tipo}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              tipo: e.target.value,
-            })
-          }
-        >
-
-          <option value="">
-            Tipo do custo
-          </option>
-
-          <option value="Ração">
-            Ração
-          </option>
-
-          <option value="Energia">
-            Energia
-          </option>
-
-          <option value="Medicamento">
-            Medicamento
-          </option>
-
-          <option value="Funcionários">
-            Funcionários
-          </option>
-
-          <option value="Outros">
-            Outros
-          </option>
-
-        </select>
-
-        {/* DESCRIÇÃO */}
-        <input
-          className="w-full border p-3 rounded-xl"
-          placeholder="Descrição do custo"
-          value={form.descricao}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              descricao: e.target.value,
-            })
-          }
-        />
-
-        {/* VALOR */}
-        <input
-          type="number"
-          className="w-full border p-3 rounded-xl"
-          placeholder="Valor"
-          value={form.valor}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              valor: e.target.value,
-            })
-          }
-        />
-
-        {/* DATA */}
-        <input
-          type="date"
-          className="w-full border p-3 rounded-xl"
-          value={form.data_custo}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              data_custo: e.target.value,
-            })
-          }
-        />
-
-        {/* BOTÃO */}
-        <button className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold">
-
-          {editandoId
-            ? "Atualizar Custo"
-            : "Salvar Custo"}
-
-        </button>
-
-      </form>
-
-      {/* LISTA */}
-      <div className="space-y-4">
-
-        {custos.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white border rounded-2xl p-5 shadow"
-          >
-
-            <div className="flex justify-between items-start">
-
-              <div>
-
-                <div className="flex gap-2 items-center">
-
-                  <h2 className="text-xl font-bold">
-                    {item.descricao}
-                  </h2>
-
-                  <span className="bg-slate-200 px-3 py-1 rounded-xl text-sm">
-                    {item.tipo}
-                  </span>
-
-                </div>
-
-                <p className="text-gray-500 mt-2">
-                  Data: {item.data_custo}
-                </p>
-
-              </div>
-
-              {/* BOTÕES */}
-              <div className="flex gap-2">
-
-                <button
-                  onClick={() =>
-                    editarCusto(item)
-                  }
-                  className="bg-yellow-400 px-4 py-2 rounded-xl font-bold"
-                >
-                  Editar
-                </button>
-
-                <button
-                  onClick={() =>
-                    excluirCusto(item.id)
-                  }
-                  className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold"
-                >
-                  Excluir
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* VALOR */}
-            <div className="mt-4">
-
-              <div className="bg-red-100 p-3 rounded-xl inline-block">
-
-                <p className="text-sm text-red-700">
-                  Valor
-                </p>
-
-                <h3 className="font-bold text-red-700">
-                  R$ {Number(item.valor).toFixed(2)}
-                </h3>
-
-              </div>
-
-            </div>
-
-          </div>
-        ))}
-
+      <div>
+        <h1 className="text-3xl font-bold">💰 Custos</h1>
+        <p className="text-gray-500 mt-1">
+          Baixa de estoque e outros custos da produção
+        </p>
       </div>
 
+      <form
+        onSubmit={salvarCusto}
+        className="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
+        <div>
+          <label className="font-bold">Tipo de Custo</label>
+          <select
+            value={tipoCusto}
+            onChange={(e) => setTipoCusto(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+          >
+            <option value="estoque">Baixa do Estoque</option>
+            <option value="manual">Outro Custo</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="font-bold">Categoria</label>
+          <select
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          >
+            <option value="Ração">Ração</option>
+            <option value="Medicamento">Medicamento</option>
+            <option value="Energia">Energia</option>
+            <option value="Funcionários">Funcionários</option>
+            <option value="Equipamentos">Equipamentos</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+
+        {tipoCusto === "estoque" && (
+          <div>
+            <label className="font-bold">Produto do Estoque</label>
+            <select
+              value={estoqueId}
+              onChange={(e) => selecionarProduto(e.target.value)}
+              className="w-full border p-3 rounded-xl mt-2"
+              required
+            >
+              <option value="">Selecione</option>
+
+              {estoque.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.produto} — {item.quantidade} sacos
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label className="font-bold">Descrição</label>
+          <input
+            type="text"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        {tipoCusto === "estoque" && (
+          <>
+            <div>
+              <label className="font-bold">
+                Quantidade de Sacos para Baixa
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={quantidadeBaixa}
+                onChange={(e) => setQuantidadeBaixa(e.target.value)}
+                className="w-full border p-3 rounded-xl mt-2"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="font-bold">Peso Total da Baixa</label>
+              <input
+                type="text"
+                readOnly
+                value={`${pesoTotalBaixa.toFixed(2)} kg`}
+                className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-blue-700"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold">Valor Total</label>
+              <input
+                type="text"
+                readOnly
+                value={`R$ ${moeda(valorEstoque)}`}
+                className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-green-700"
+              />
+            </div>
+          </>
+        )}
+
+        {tipoCusto === "manual" && (
+          <div>
+            <label className="font-bold">Valor do Custo</label>
+            <input
+              type="number"
+              step="0.01"
+              value={valorManual}
+              onChange={(e) => setValorManual(e.target.value)}
+              className="w-full border p-3 rounded-xl mt-2"
+              required
+            />
+          </div>
+        )}
+
+        <div>
+          <label className="font-bold">Tanque</label>
+          <select
+            value={tanque}
+            onChange={(e) => setTanque(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+          >
+            <option value="">Geral / Sem tanque</option>
+
+            {tanques.map((item, index) => (
+              <option key={index} value={item.nome}>
+                {item.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="font-bold">Data</label>
+          <input
+            type="date"
+            value={dataCusto}
+            onChange={(e) => setDataCusto(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        <div className="flex items-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl"
+          >
+            {loading ? "Salvando..." : "Salvar"}
+          </button>
+        </div>
+      </form>
+
+      <div className="bg-white p-6 rounded-2xl shadow overflow-auto">
+        <h2 className="text-2xl font-bold mb-4">📋 Histórico</h2>
+
+        <table className="w-full">
+          <thead>
+            <tr className="border-b bg-slate-100">
+              <th className="p-3 text-left">Data</th>
+              <th className="p-3 text-left">Tipo</th>
+              <th className="p-3 text-left">Categoria</th>
+              <th className="p-3 text-left">Descrição</th>
+              <th className="p-3 text-left">Tanque</th>
+              <th className="p-3 text-left">Baixa</th>
+              <th className="p-3 text-left">Peso</th>
+              <th className="p-3 text-left">Valor</th>
+              <th className="p-3 text-left">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {dados.map((item) => (
+              <tr key={item.id} className="border-b hover:bg-slate-50">
+                <td className="p-3">{item.data_custo}</td>
+                <td className="p-3">{item.tipo_custo}</td>
+                <td className="p-3">{item.categoria}</td>
+                <td className="p-3">{item.descricao}</td>
+                <td className="p-3">{item.tanque || "-"}</td>
+                <td className="p-3">
+                  {Number(item.quantidade_baixa || 0).toFixed(2)} sacos
+                </td>
+                <td className="p-3">
+                  {Number(item.peso_total_baixa || 0).toFixed(2)} kg
+                </td>
+                <td className="p-3 font-bold text-green-700">
+                  R$ {moeda(item.valor_total || item.valor)}
+                </td>
+                <td className="p-3">
+                  <button
+                    onClick={() => excluir(item)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+                  >
+                    Excluir
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

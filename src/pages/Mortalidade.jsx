@@ -1,406 +1,387 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
-export default function Mortalidade({
-  user,
-}) {
-
-  const [registros, setRegistros] =
-    useState([])
+export default function Mortalidade({ user }) {
 
   const [tanques, setTanques] =
     useState([])
 
-  const [editandoId, setEditandoId] =
-    useState(null)
+  const [dados, setDados] =
+    useState([])
 
-  const [form, setForm] = useState({
-    tanque: "",
-    quantidade: "",
-    peso_medio: "",
-    causa: "",
-    data_mortalidade: "",
-  })
+  const [tanque, setTanque] =
+    useState("")
 
-  // 🔥 CARREGAR TANQUES
-  async function carregarTanques() {
+  const [quantidade, setQuantidade] =
+    useState("")
 
-    const { data, error } =
-      await supabase
-        .from("tanques")
-        .select("*")
-        .eq("user_id", user.id)
+  const [motivo, setMotivo] =
+    useState("")
 
-    if (!error) {
-      setTanques(data)
-    }
-  }
+  const [data, setData] =
+    useState("")
 
-  // 🔥 CARREGAR MORTALIDADE
   async function carregarDados() {
 
-    const { data, error } =
-      await supabase
+    try {
+
+      // 🔥 TANQUES
+      const { data: dadosTanques } =
+        await supabase
+          .from("tanques")
+          .select("nome")
+          .eq(
+            "user_id",
+            user.id
+          )
+
+      const nomesTanques =
+        dadosTanques?.map(
+          (t) => t.nome
+        ) || []
+
+      setTanques(
+        dadosTanques || []
+      )
+
+      // 🔥 MORTALIDADE
+      const {
+        data: mortalidades,
+      } = await supabase
         .from("mortalidade")
         .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
+        .eq(
+          "user_id",
+          user.id
+        )
+        .order("data", {
           ascending: false,
         })
 
-    if (!error) {
-      setRegistros(data)
+      // 🔥 SOMENTE TANQUES EXISTENTES
+      const validas =
+        mortalidades?.filter(
+          (item) =>
+            nomesTanques.includes(
+              item.tanque
+            )
+        ) || []
+
+      // 🔥 EXCLUIR ÓRFÃOS
+      const invalidas =
+        mortalidades?.filter(
+          (item) =>
+            !nomesTanques.includes(
+              item.tanque
+            )
+        ) || []
+
+      if (
+        invalidas.length > 0
+      ) {
+
+        const ids =
+          invalidas.map(
+            (item) => item.id
+          )
+
+        await supabase
+          .from("mortalidade")
+          .delete()
+          .in("id", ids)
+
+      }
+
+      setDados(validas)
+
+    } catch (erro) {
+      console.log(erro)
     }
+  }
+
+  async function salvar(e) {
+
+    e.preventDefault()
+
+    const { error } =
+      await supabase
+        .from("mortalidade")
+        .insert([
+          {
+            user_id: user.id,
+            tanque,
+            quantidade:
+              Number(
+                quantidade
+              ),
+            motivo,
+            data,
+          },
+        ])
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    setTanque("")
+    setQuantidade("")
+    setMotivo("")
+    setData("")
+
+    carregarDados()
+  }
+
+  async function excluir(id) {
+
+    if (
+      !confirm(
+        "Excluir registro?"
+      )
+    )
+      return
+
+    await supabase
+      .from("mortalidade")
+      .delete()
+      .eq("id", id)
+
+    carregarDados()
   }
 
   useEffect(() => {
 
     if (user) {
-      carregarTanques()
       carregarDados()
     }
 
   }, [user])
 
-  // 🔥 SALVAR
-  async function salvar(e) {
-
-    e.preventDefault()
-
-    const biomassa_perdida =
-      (
-        Number(form.quantidade) *
-        Number(form.peso_medio)
-      ) / 1000
-
-    // 🔥 EDITAR
-    if (editandoId) {
-
-      const { error } =
-        await supabase
-          .from("mortalidade")
-          .update({
-            tanque: form.tanque,
-            quantidade:
-              Number(form.quantidade),
-            peso_medio:
-              Number(form.peso_medio),
-            biomassa_perdida,
-            causa: form.causa,
-            data_mortalidade:
-              form.data_mortalidade,
-          })
-          .eq("id", editandoId)
-
-      if (error) {
-        alert(error.message)
-        return
-      }
-
-      setEditandoId(null)
-    }
-
-    // 🔥 NOVO
-    else {
-
-      const { error } =
-        await supabase
-          .from("mortalidade")
-          .insert([
-            {
-              user_id: user.id,
-              tanque: form.tanque,
-              quantidade:
-                Number(form.quantidade),
-              peso_medio:
-                Number(form.peso_medio),
-              biomassa_perdida,
-              causa: form.causa,
-              data_mortalidade:
-                form.data_mortalidade,
-            },
-          ])
-
-      if (error) {
-        alert(error.message)
-        return
-      }
-    }
-
-    // 🔥 LIMPAR
-    setForm({
-      tanque: "",
-      quantidade: "",
-      peso_medio: "",
-      causa: "",
-      data_mortalidade: "",
-    })
-
-    carregarDados()
-  }
-
-  // 🔥 EXCLUIR
-  async function excluir(id) {
-
-    const confirmar =
-      confirm(
-        "Deseja excluir?"
-      )
-
-    if (!confirmar) return
-
-    const { error } =
-      await supabase
-        .from("mortalidade")
-        .delete()
-        .eq("id", id)
-
-    if (!error) {
-      carregarDados()
-    }
-  }
-
-  // 🔥 EDITAR
-  function editar(item) {
-
-    setEditandoId(item.id)
-
-    setForm({
-      tanque: item.tanque,
-      quantidade:
-        item.quantidade,
-      peso_medio:
-        item.peso_medio,
-      causa: item.causa,
-      data_mortalidade:
-        item.data_mortalidade,
-    })
-  }
-
   return (
 
     <div className="space-y-6">
 
-      <h1 className="text-3xl font-bold">
-        ☠️ Mortalidade
-      </h1>
+      <div>
+
+        <h1 className="text-3xl font-bold">
+          ☠️ Mortalidade
+        </h1>
+
+        <p className="text-gray-500 mt-1">
+          Controle de perdas
+        </p>
+
+      </div>
 
       {/* FORM */}
       <form
         onSubmit={salvar}
-        className="bg-slate-100 p-6 rounded-2xl space-y-4"
+        className="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
       >
 
-        {/* TANQUE */}
-        <select
-          className="w-full border p-3 rounded-xl"
-          value={form.tanque}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              tanque:
-                e.target.value,
-            })
-          }
-        >
+        <div>
 
-          <option value="">
-            Selecione o tanque
-          </option>
+          <label className="font-bold">
+            Tanque
+          </label>
 
-          {tanques.map((tanque) => (
+          <select
+            value={tanque}
+            onChange={(e) =>
+              setTanque(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          >
 
-            <option
-              key={tanque.id}
-              value={tanque.nome}
-            >
-              {tanque.nome}
+            <option value="">
+              Selecione
             </option>
 
-          ))}
+            {tanques.map(
+              (
+                item,
+                index
+              ) => (
+                <option
+                  key={index}
+                  value={
+                    item.nome
+                  }
+                >
+                  {item.nome}
+                </option>
+              )
+            )}
 
-        </select>
+          </select>
 
-        {/* QUANTIDADE */}
-        <input
-          type="number"
-          placeholder="Quantidade Morta"
-          className="w-full border p-3 rounded-xl"
-          value={form.quantidade}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              quantidade:
-                e.target.value,
-            })
-          }
-        />
+        </div>
 
-        {/* PESO */}
-        <input
-          type="number"
-          placeholder="Peso Médio (g)"
-          className="w-full border p-3 rounded-xl"
-          value={form.peso_medio}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              peso_medio:
-                e.target.value,
-            })
-          }
-        />
+        <div>
 
-        {/* CAUSA */}
-        <input
-          type="text"
-          placeholder="Causa"
-          className="w-full border p-3 rounded-xl"
-          value={form.causa}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              causa:
-                e.target.value,
-            })
-          }
-        />
+          <label className="font-bold">
+            Quantidade
+          </label>
 
-        {/* DATA */}
-        <input
-          type="date"
-          className="w-full border p-3 rounded-xl"
-          value={
-            form.data_mortalidade
-          }
-          onChange={(e) =>
-            setForm({
-              ...form,
-              data_mortalidade:
-                e.target.value,
-            })
-          }
-        />
+          <input
+            type="number"
+            value={quantidade}
+            onChange={(e) =>
+              setQuantidade(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
 
-        {/* BOTÃO */}
-        <button
-          className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold"
-        >
+        </div>
 
-          {editandoId
-            ? "Atualizar"
-            : "Salvar"}
+        <div>
 
-        </button>
+          <label className="font-bold">
+            Motivo
+          </label>
+
+          <input
+            type="text"
+            value={motivo}
+            onChange={(e) =>
+              setMotivo(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+          />
+
+        </div>
+
+        <div>
+
+          <label className="font-bold">
+            Data
+          </label>
+
+          <input
+            type="date"
+            value={data}
+            onChange={(e) =>
+              setData(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+
+        </div>
+
+        <div className="md:col-span-2 lg:col-span-4">
+
+          <button
+            type="submit"
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold"
+          >
+
+            Salvar
+
+          </button>
+
+        </div>
 
       </form>
 
-      {/* LISTA */}
-      <div className="space-y-4">
+      {/* TABELA */}
+      <div className="bg-white p-6 rounded-2xl shadow overflow-auto">
 
-        {registros.map((item) => (
+        <h2 className="text-2xl font-bold mb-4">
+          📋 Histórico
+        </h2>
 
-          <div
-            key={item.id}
-            className="bg-white border rounded-2xl p-5 shadow"
-          >
+        <table className="w-full">
 
-            <div className="flex justify-between">
+          <thead>
 
-              <div>
+            <tr className="border-b bg-slate-100">
 
-                <h2 className="text-xl font-bold">
-                  {item.tanque}
-                </h2>
+              <th className="p-3 text-left">
+                Data
+              </th>
 
-                <p className="text-gray-500">
-                  {item.data_mortalidade}
-                </p>
+              <th className="p-3 text-left">
+                Tanque
+              </th>
 
-              </div>
+              <th className="p-3 text-left">
+                Quantidade
+              </th>
 
-              <div className="flex gap-2">
+              <th className="p-3 text-left">
+                Motivo
+              </th>
 
-                <button
-                  onClick={() =>
-                    editar(item)
-                  }
-                  className="bg-yellow-400 px-4 py-2 rounded-xl font-bold"
+              <th className="p-3 text-left">
+                Ações
+              </th>
+
+            </tr>
+
+          </thead>
+
+          <tbody>
+
+            {dados.map(
+              (item) => (
+
+                <tr
+                  key={item.id}
+                  className="border-b hover:bg-slate-50"
                 >
-                  Editar
-                </button>
 
-                <button
-                  onClick={() =>
-                    excluir(item.id)
-                  }
-                  className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold"
-                >
-                  Excluir
-                </button>
+                  <td className="p-3">
+                    {item.data}
+                  </td>
 
-              </div>
+                  <td className="p-3">
+                    {item.tanque}
+                  </td>
 
-            </div>
+                  <td className="p-3">
+                    {item.quantidade}
+                  </td>
 
-            {/* CARDS */}
-            <div className="grid grid-cols-4 gap-3 mt-4">
+                  <td className="p-3">
+                    {item.motivo}
+                  </td>
 
-              <div className="bg-slate-100 p-3 rounded-xl">
+                  <td className="p-3">
 
-                <p className="text-sm text-gray-500">
-                  Quantidade
-                </p>
+                    <button
+                      onClick={() =>
+                        excluir(
+                          item.id
+                        )
+                      }
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+                    >
 
-                <h3 className="font-bold">
-                  {item.quantidade}
-                </h3>
+                      Excluir
 
-              </div>
+                    </button>
 
-              <div className="bg-slate-100 p-3 rounded-xl">
+                  </td>
 
-                <p className="text-sm text-gray-500">
-                  Peso Médio
-                </p>
+                </tr>
 
-                <h3 className="font-bold">
-                  {item.peso_medio} g
-                </h3>
+              )
+            )}
 
-              </div>
+          </tbody>
 
-              <div className="bg-red-100 p-3 rounded-xl">
-
-                <p className="text-sm text-red-700">
-                  Biomassa Perdida
-                </p>
-
-                <h3 className="font-bold text-red-700">
-                  {Number(
-                    item.biomassa_perdida
-                  ).toFixed(2)} kg
-                </h3>
-
-              </div>
-
-              <div className="bg-slate-100 p-3 rounded-xl">
-
-                <p className="text-sm text-gray-500">
-                  Causa
-                </p>
-
-                <h3 className="font-bold">
-                  {item.causa}
-                </h3>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        ))}
+        </table>
 
       </div>
 

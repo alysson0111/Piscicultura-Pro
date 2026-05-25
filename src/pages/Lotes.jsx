@@ -1,437 +1,336 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
-export default function Lotes({
-  user,
-}) {
+export default function Lotes({ user }) {
+  const [nomeLote, setNomeLote] = useState("")
+  const [tanque, setTanque] = useState("")
+  const [especie, setEspecie] = useState("Tilápia")
+  const [quantidade, setQuantidade] = useState("")
+  const [pesoInicial, setPesoInicial] = useState("")
+  const [dataPovoamento, setDataPovoamento] = useState("")
+  const [fornecedor, setFornecedor] = useState("")
 
-  const [dados, setDados] =
-    useState([])
+  const [dados, setDados] = useState([])
+  const [tanques, setTanques] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [editando, setEditando] = useState(null)
 
-  const [tanques, setTanques] =
-    useState([])
+  const biomassa =
+    (Number(quantidade || 0) * Number(pesoInicial || 0)) / 1000
 
-  const [editandoId, setEditandoId] =
-    useState(null)
-
-  const [form, setForm] = useState({
-    tanque: "",
-    nome_lote: "",
-    fornecedor: "",
-    quantidade_inicial: "",
-    peso_inicial: "",
-    data_povoamento: "",
-  })
-
-  // 🔥 CARREGAR TANQUES
-  async function carregarTanques() {
-
-    const { data, error } =
-      await supabase
-        .from("tanques")
-        .select("*")
-        .eq("user_id", user.id)
-
-    if (!error) {
-      setTanques(data)
-    }
+  function formatar(valor) {
+    return Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
   }
 
-  // 🔥 CARREGAR LOTES
   async function carregarDados() {
+    try {
+      const { data: dadosTanques } = await supabase
+        .from("tanques")
+        .select("nome")
+        .eq("user_id", user.id)
 
-    const { data, error } =
-      await supabase
+      const nomesTanques = dadosTanques?.map((t) => t.nome) || []
+
+      setTanques(dadosTanques || [])
+
+      const { data: lotes } = await supabase
         .from("lotes")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        })
+        .order("created_at", { ascending: false })
 
-    if (!error) {
-      setDados(data)
+      const lotesValidos =
+        lotes?.filter((item) =>
+          nomesTanques.includes(item.tanque)
+        ) || []
+
+      const lotesInvalidos =
+        lotes?.filter((item) =>
+          !nomesTanques.includes(item.tanque)
+        ) || []
+
+      if (lotesInvalidos.length > 0) {
+        const idsInvalidos = lotesInvalidos.map((item) => item.id)
+
+        await supabase
+          .from("lotes")
+          .delete()
+          .in("id", idsInvalidos)
+      }
+
+      setDados(lotesValidos)
+    } catch (erro) {
+      console.log(erro)
     }
+  }
+
+  async function salvar(e) {
+    e.preventDefault()
+    setLoading(true)
+
+    const payload = {
+      user_id: user.id,
+      nome_lote: nomeLote,
+      tanque,
+      especie,
+      quantidade: Number(quantidade),
+      peso_inicial: Number(pesoInicial),
+      biomassa: Number(biomassa),
+      data_povoamento: dataPovoamento,
+      fornecedor,
+    }
+
+    const query = editando
+      ? supabase.from("lotes").update(payload).eq("id", editando)
+      : supabase.from("lotes").insert([payload])
+
+    const { error } = await query
+
+    if (error) {
+      alert(error.message)
+      setLoading(false)
+      return
+    }
+
+    limpar()
+    carregarDados()
+    setLoading(false)
+
+    alert(editando ? "Lote atualizado!" : "Lote salvo!")
+  }
+
+  function editar(item) {
+    setEditando(item.id)
+    setNomeLote(item.nome_lote || "")
+    setTanque(item.tanque || "")
+    setEspecie(item.especie || "Tilápia")
+    setQuantidade(item.quantidade || "")
+    setPesoInicial(item.peso_inicial || "")
+    setDataPovoamento(item.data_povoamento || "")
+    setFornecedor(item.fornecedor || "")
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    })
+  }
+
+  function limpar() {
+    setEditando(null)
+    setNomeLote("")
+    setTanque("")
+    setEspecie("Tilápia")
+    setQuantidade("")
+    setPesoInicial("")
+    setDataPovoamento("")
+    setFornecedor("")
+  }
+
+  async function excluir(id) {
+    if (!confirm("Excluir lote?")) return
+
+    const { error } = await supabase
+      .from("lotes")
+      .delete()
+      .eq("id", id)
+
+    if (!error) carregarDados()
   }
 
   useEffect(() => {
-
-    if (user) {
-      carregarTanques()
-      carregarDados()
-    }
-
+    if (user) carregarDados()
   }, [user])
 
-  // 🔥 SALVAR
-  async function salvar(e) {
-
-    e.preventDefault()
-
-    // 🔥 EDITAR
-    if (editandoId) {
-
-      const { error } =
-        await supabase
-          .from("lotes")
-          .update({
-            tanque: form.tanque,
-            nome_lote:
-              form.nome_lote,
-            fornecedor:
-              form.fornecedor,
-            quantidade_inicial:
-              Number(
-                form.quantidade_inicial
-              ),
-            peso_inicial:
-              Number(
-                form.peso_inicial
-              ),
-            data_povoamento:
-              form.data_povoamento,
-          })
-          .eq("id", editandoId)
-
-      if (error) {
-        alert(error.message)
-        return
-      }
-
-      setEditandoId(null)
-    }
-
-    // 🔥 NOVO
-    else {
-
-      const { error } =
-        await supabase
-          .from("lotes")
-          .insert([
-            {
-              user_id: user.id,
-              tanque: form.tanque,
-              nome_lote:
-                form.nome_lote,
-              fornecedor:
-                form.fornecedor,
-              quantidade_inicial:
-                Number(
-                  form.quantidade_inicial
-                ),
-              peso_inicial:
-                Number(
-                  form.peso_inicial
-                ),
-              data_povoamento:
-                form.data_povoamento,
-            },
-          ])
-
-      if (error) {
-        alert(error.message)
-        return
-      }
-    }
-
-    // 🔥 LIMPAR
-    setForm({
-      tanque: "",
-      nome_lote: "",
-      fornecedor: "",
-      quantidade_inicial: "",
-      peso_inicial: "",
-      data_povoamento: "",
-    })
-
-    carregarDados()
-  }
-
-  // 🔥 EXCLUIR
-  async function excluir(id) {
-
-    const confirmar =
-      confirm(
-        "Deseja excluir?"
-      )
-
-    if (!confirmar) return
-
-    const { error } =
-      await supabase
-        .from("lotes")
-        .delete()
-        .eq("id", id)
-
-    if (!error) {
-      carregarDados()
-    }
-  }
-
-  // 🔥 EDITAR
-  function editar(item) {
-
-    setEditandoId(item.id)
-
-    setForm({
-      tanque: item.tanque,
-      nome_lote:
-        item.nome_lote,
-      fornecedor:
-        item.fornecedor,
-      quantidade_inicial:
-        item.quantidade_inicial,
-      peso_inicial:
-        item.peso_inicial,
-      data_povoamento:
-        item.data_povoamento,
-    })
-  }
-
   return (
-
     <div className="space-y-6">
-
-      <h1 className="text-3xl font-bold">
-        🐟 Lotes
-      </h1>
-
-      {/* FORM */}
-      <form
-        onSubmit={salvar}
-        className="bg-slate-100 p-6 rounded-2xl space-y-4"
-      >
-
-        {/* TANQUE */}
-        <select
-          className="w-full border p-3 rounded-xl"
-          value={form.tanque}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              tanque:
-                e.target.value,
-            })
-          }
-        >
-
-          <option value="">
-            Selecione o tanque
-          </option>
-
-          {tanques.map((tanque) => (
-
-            <option
-              key={tanque.id}
-              value={tanque.nome}
-            >
-              {tanque.nome}
-            </option>
-
-          ))}
-
-        </select>
-
-        {/* LOTE */}
-        <input
-          type="text"
-          placeholder="Nome do Lote"
-          className="w-full border p-3 rounded-xl"
-          value={form.nome_lote}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              nome_lote:
-                e.target.value,
-            })
-          }
-        />
-
-        {/* FORNECEDOR */}
-        <input
-          type="text"
-          placeholder="Fornecedor"
-          className="w-full border p-3 rounded-xl"
-          value={form.fornecedor}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              fornecedor:
-                e.target.value,
-            })
-          }
-        />
-
-        {/* QUANTIDADE */}
-        <input
-          type="number"
-          placeholder="Quantidade Inicial"
-          className="w-full border p-3 rounded-xl"
-          value={
-            form.quantidade_inicial
-          }
-          onChange={(e) =>
-            setForm({
-              ...form,
-              quantidade_inicial:
-                e.target.value,
-            })
-          }
-        />
-
-        {/* PESO */}
-        <input
-          type="number"
-          placeholder="Peso Inicial (g)"
-          className="w-full border p-3 rounded-xl"
-          value={form.peso_inicial}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              peso_inicial:
-                e.target.value,
-            })
-          }
-        />
-
-        {/* DATA */}
-        <input
-          type="date"
-          className="w-full border p-3 rounded-xl"
-          value={
-            form.data_povoamento
-          }
-          onChange={(e) =>
-            setForm({
-              ...form,
-              data_povoamento:
-                e.target.value,
-            })
-          }
-        />
-
-        {/* BOTÃO */}
-        <button
-          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold"
-        >
-
-          {editandoId
-            ? "Atualizar"
-            : "Salvar"}
-
-        </button>
-
-      </form>
-
-      {/* LISTA */}
-      <div className="space-y-4">
-
-        {dados.map((item) => (
-
-          <div
-            key={item.id}
-            className="bg-white border rounded-2xl p-5 shadow"
-          >
-
-            <div className="flex justify-between">
-
-              <div>
-
-                <h2 className="text-xl font-bold">
-                  {item.nome_lote}
-                </h2>
-
-                <p className="text-gray-500">
-                  Tanque:
-                  {" "}
-                  {item.tanque}
-                </p>
-
-              </div>
-
-              <div className="flex gap-2">
-
-                <button
-                  onClick={() =>
-                    editar(item)
-                  }
-                  className="bg-yellow-400 px-4 py-2 rounded-xl font-bold"
-                >
-                  Editar
-                </button>
-
-                <button
-                  onClick={() =>
-                    excluir(item.id)
-                  }
-                  className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold"
-                >
-                  Excluir
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* CARDS */}
-            <div className="grid grid-cols-4 gap-3 mt-4">
-
-              <div className="bg-slate-100 p-3 rounded-xl">
-
-                <p className="text-sm text-gray-500">
-                  Quantidade
-                </p>
-
-                <h3 className="font-bold">
-                  {item.quantidade_inicial}
-                </h3>
-
-              </div>
-
-              <div className="bg-slate-100 p-3 rounded-xl">
-
-                <p className="text-sm text-gray-500">
-                  Peso Inicial
-                </p>
-
-                <h3 className="font-bold">
-                  {item.peso_inicial} g
-                </h3>
-
-              </div>
-
-              <div className="bg-blue-100 p-3 rounded-xl">
-
-                <p className="text-sm text-blue-700">
-                  Fornecedor
-                </p>
-
-                <h3 className="font-bold text-blue-700">
-                  {item.fornecedor}
-                </h3>
-
-              </div>
-
-              <div className="bg-green-100 p-3 rounded-xl">
-
-                <p className="text-sm text-green-700">
-                  Povoamento
-                </p>
-
-                <h3 className="font-bold text-green-700">
-                  {item.data_povoamento}
-                </h3>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        ))}
-
+      <div>
+        <h1 className="text-3xl font-bold">🐟 Lotes</h1>
+        <p className="text-gray-500 mt-1">
+          Controle de povoamento dos tanques
+        </p>
       </div>
 
+      <form
+        onSubmit={salvar}
+        className="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
+        <div>
+          <label className="font-bold">Nome do Lote</label>
+          <input
+            type="text"
+            value={nomeLote}
+            onChange={(e) => setNomeLote(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Tanque</label>
+          <select
+            value={tanque}
+            onChange={(e) => setTanque(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          >
+            <option value="">Selecione</option>
+
+            {tanques.map((item, index) => (
+              <option key={index} value={item.nome}>
+                {item.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="font-bold">Espécie</label>
+          <select
+            value={especie}
+            onChange={(e) => setEspecie(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+          >
+            <option value="Tilápia">Tilápia</option>
+            <option value="Tambaqui">Tambaqui</option>
+            <option value="Pirarucu">Pirarucu</option>
+            <option value="Lambari">Lambari</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="font-bold">Quantidade</label>
+          <input
+            type="number"
+            value={quantidade}
+            onChange={(e) => setQuantidade(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Peso Inicial (g)</label>
+          <input
+            type="number"
+            step="0.01"
+            value={pesoInicial}
+            onChange={(e) => setPesoInicial(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Biomassa Inicial</label>
+          <input
+            type="text"
+            readOnly
+            value={`${formatar(biomassa)} kg`}
+            className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-green-700"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Data Povoamento</label>
+          <input
+            type="date"
+            value={dataPovoamento}
+            onChange={(e) => setDataPovoamento(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Fornecedor</label>
+          <input
+            type="text"
+            value={fornecedor}
+            onChange={(e) => setFornecedor(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+          />
+        </div>
+
+        <div className="flex items-end gap-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl"
+          >
+            {loading ? "Salvando..." : editando ? "Atualizar" : "Salvar"}
+          </button>
+
+          {editando && (
+            <button
+              type="button"
+              onClick={limpar}
+              className="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold p-3 rounded-xl"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div className="bg-white p-6 rounded-2xl shadow overflow-auto">
+        <h2 className="text-2xl font-bold mb-4">
+          📋 Lotes Cadastrados
+        </h2>
+
+        <table className="w-full">
+          <thead>
+            <tr className="border-b bg-slate-100">
+              <th className="p-3 text-left">Lote</th>
+              <th className="p-3 text-left">Tanque</th>
+              <th className="p-3 text-left">Espécie</th>
+              <th className="p-3 text-left">Quantidade</th>
+              <th className="p-3 text-left">Peso Inicial</th>
+              <th className="p-3 text-left">Biomassa</th>
+              <th className="p-3 text-left">Data</th>
+              <th className="p-3 text-left">Fornecedor</th>
+              <th className="p-3 text-left">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {dados.map((item) => (
+              <tr key={item.id} className="border-b hover:bg-slate-50">
+                <td className="p-3">{item.nome_lote}</td>
+                <td className="p-3">{item.tanque}</td>
+                <td className="p-3">{item.especie}</td>
+                <td className="p-3">{item.quantidade}</td>
+                <td className="p-3">{formatar(item.peso_inicial)} g</td>
+                <td className="p-3 font-bold text-green-700">
+                  {formatar(item.biomassa)} kg
+                </td>
+                <td className="p-3">{item.data_povoamento}</td>
+                <td className="p-3">{item.fornecedor || "-"}</td>
+                <td className="p-3">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => editar(item)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl"
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      onClick={() => excluir(item.id)}
+                      className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
