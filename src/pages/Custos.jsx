@@ -194,16 +194,27 @@ export default function Custos({ user }) {
         .from("estoque")
         .select("*")
         .eq("id", item.estoque_id)
-        .single()
+        .maybeSingle()
+
+      const quantidadeVoltar =
+        Number(item.quantidade_baixa || 0)
+
+      const pesoVoltar =
+        Number(item.peso_total_baixa || 0)
+
+      const pesoEmbalagem =
+        quantidadeVoltar > 0
+          ? pesoVoltar / quantidadeVoltar
+          : 0
 
       if (produtoEstoque) {
         const novoSaldo =
           Number(produtoEstoque.quantidade || 0) +
-          Number(item.quantidade_baixa || 0)
+          quantidadeVoltar
 
         const novoPesoTotal =
           novoSaldo *
-          Number(produtoEstoque.peso_embalagem || 0)
+          Number(produtoEstoque.peso_embalagem || pesoEmbalagem || 0)
 
         await supabase
           .from("estoque")
@@ -212,6 +223,26 @@ export default function Custos({ user }) {
             peso_total: novoPesoTotal,
           })
           .eq("id", item.estoque_id)
+      } else {
+        await supabase
+          .from("estoque")
+          .insert([
+            {
+              id: item.estoque_id,
+              user_id: user.id,
+              produto: item.descricao,
+              categoria: item.categoria,
+              quantidade: quantidadeVoltar,
+              peso_embalagem: pesoEmbalagem,
+              peso_total: pesoVoltar,
+              unidade: "sacos",
+              valor_unitario: Number(item.valor_unitario || 0),
+              valor_total:
+                quantidadeVoltar *
+                Number(item.valor_unitario || 0),
+              data_entrada: item.data_custo,
+            },
+          ])
       }
     }
 
