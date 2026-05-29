@@ -29,6 +29,11 @@ export default function Estoque({ user }) {
     })
   }
 
+  function dataBR(data) {
+    if (!data) return "-"
+    return new Date(data).toLocaleDateString("pt-BR")
+  }
+
   async function carregarDados() {
     const { data, error } = await supabase
       .from("estoque")
@@ -153,8 +158,6 @@ export default function Estoque({ user }) {
           >
             <option value="">Selecione</option>
             <option value="Ração">Ração</option>
-            <option value="Medicamento">Medicamento</option>
-            <option value="Equipamento">Equipamento</option>
             <option value="Químico">Químico</option>
             <option value="Outros">Outros</option>
           </select>
@@ -294,7 +297,7 @@ export default function Estoque({ user }) {
                 <td className="p-3 font-bold text-green-700">
                   R$ {moeda(item.valor_total)}
                 </td>
-                <td className="p-3">{item.data_entrada}</td>
+                <td className="p-3">{dataBR(item.data_entrada)}</td>
                 <td className="p-3">
                   <div className="flex gap-2">
                     <button

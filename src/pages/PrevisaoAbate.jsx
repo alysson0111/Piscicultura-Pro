@@ -1,27 +1,135 @@
-import {
-  useEffect,
-  useState,
-} from "react"
+import { useEffect, useState } from "react"
 
-import { supabase }
-from "../lib/supabase"
+import { supabase } from "../lib/supabase"
 
 export default function PrevisaoAbate({
   user,
 }) {
-
   const [dados, setDados] =
     useState([])
 
-  // 🔥 PESO META ABATE
   const PESO_ABATE = 900
+  const MS_DIA = 1000 * 60 * 60 * 24
 
-  // 🔥 CARREGAR DADOS
+  function calcularBiomassaPorData(
+    item,
+    dataRetirada
+  ) {
+    const quantidade =
+      Number(
+        item.quantidade_lote ||
+        item.quantidade ||
+        item.quantidade_inicial ||
+        0
+      )
+
+    if (!dataRetirada) {
+      return {
+        peso_futuro: PESO_ABATE,
+        biomassa_futura:
+          (
+            quantidade *
+            PESO_ABATE
+          ) / 1000,
+      }
+    }
+
+    const dataBase =
+      new Date(
+        item.data_base_previsao ||
+        item.data_povoamento ||
+        new Date()
+      )
+
+    const dataFinal =
+      new Date(dataRetirada)
+
+    const dias =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            dataFinal -
+            dataBase
+          ) / MS_DIA
+        )
+      )
+
+    const pesoBase =
+      Number(
+        item.peso_atual ||
+        item.peso_inicial ||
+        0
+      )
+
+    const crescimento =
+      Number(item.crescimento || 0)
+
+    const pesoFuturo =
+      Math.max(
+        0,
+        pesoBase +
+        crescimento * dias
+      )
+
+    return {
+      peso_futuro: pesoFuturo,
+      biomassa_futura:
+        (
+          quantidade *
+          pesoFuturo
+        ) / 1000,
+    }
+  }
+
+  function atualizarDataRetirada(
+    id,
+    dataRetirada
+  ) {
+    setDados((lista) =>
+      lista.map((item) => {
+        if (item.id !== id) {
+          return item
+        }
+
+        const calculo =
+          calcularBiomassaPorData(
+            item,
+            dataRetirada
+          )
+
+        return {
+          ...item,
+          data_prevista_retirada:
+            dataRetirada,
+          ...calculo,
+        }
+      })
+    )
+  }
+
+  async function salvarDataRetirada(
+    item
+  ) {
+    const { error } =
+      await supabase
+        .from("lotes")
+        .update({
+          data_prevista_retirada:
+            item.data_prevista_retirada || null,
+        })
+        .eq("id", item.id)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    alert("Data prevista salva!")
+  }
+
   async function carregarDados() {
-
     try {
-
-      // 🔥 LOTES
       const {
         data: lotes,
         error: erroLotes,
@@ -33,7 +141,6 @@ export default function PrevisaoAbate({
           user.id
         )
 
-      // 🔥 BIOMETRIA
       const {
         data: biometrias,
         error: erroBiometria,
@@ -46,85 +153,82 @@ export default function PrevisaoAbate({
         )
 
       if (erroLotes) {
-
-        console.log(
-          erroLotes
-        )
-
+        console.log(erroLotes)
         return
       }
 
       if (erroBiometria) {
-
-        console.log(
-          erroBiometria
-        )
-
+        console.log(erroBiometria)
         return
       }
 
-      if (
-        !lotes ||
-        !biometrias
-      ) {
-
+      if (!lotes || !biometrias) {
         setDados([])
-
         return
       }
 
-      // 🔥 PROCESSAR
       const resultado =
         lotes.map((lote) => {
+          const quantidadeLote =
+            Number(
+              lote.quantidade ||
+              lote.quantidade_inicial ||
+              0
+            )
 
-          // 🔥 PEGAR BIOMETRIAS DO TANQUE
+          const dataRetirada =
+            lote.data_prevista_retirada || ""
+
           const biometriaTanque =
             biometrias
               .filter(
                 (b) =>
-                  b.tanque ===
-                  lote.tanque
+                  b.tanque === lote.tanque
               )
               .sort(
                 (a, b) =>
-
                   new Date(
                     b.data_biometria
                   ) -
-
                   new Date(
                     a.data_biometria
                   )
-
               )
 
-          // 🔥 SEM BIOMETRIA
-          if (
-            biometriaTanque.length === 0
-          ) {
+          if (biometriaTanque.length === 0) {
+            const baseSemBiometria = {
+              ...lote,
+              quantidade_lote:
+                quantidadeLote,
+              peso_atual:
+                Number(lote.peso_inicial || 0),
+              crescimento: 0,
+              data_base_previsao:
+                lote.data_povoamento,
+            }
+
+            const calculo =
+              calcularBiomassaPorData(
+                baseSemBiometria,
+                dataRetirada
+              )
 
             return {
-
-              ...lote,
-
-              peso_atual: 0,
-
-              crescimento: 0,
-
+              ...baseSemBiometria,
+              data_prevista_retirada:
+                dataRetirada,
+              peso_futuro:
+                calculo.peso_futuro,
               dias_restantes: 0,
-
               previsao: "-",
-
-              biomassa_futura: 0,
-
+              biomassa_futura:
+                calculo.biomassa_futura,
             }
           }
 
-          // 🔥 ÚLTIMA BIOMETRIA
           const ultima =
             biometriaTanque[0]
 
-          // 🔥 DATAS
           const dataInicial =
             new Date(
               lote.data_povoamento
@@ -135,7 +239,6 @@ export default function PrevisaoAbate({
               ultima.data_biometria
             )
 
-          // 🔥 DIAS CULTIVO
           const diasCultivo =
             Math.max(
               1,
@@ -143,17 +246,10 @@ export default function PrevisaoAbate({
                 (
                   dataAtual -
                   dataInicial
-                ) /
-                (
-                  1000 *
-                  60 *
-                  60 *
-                  24
-                )
+                ) / MS_DIA
               )
             )
 
-          // 🔥 PESOS
           const pesoInicial =
             Number(
               lote.peso_inicial || 0
@@ -164,7 +260,6 @@ export default function PrevisaoAbate({
               ultima.peso_medio || 0
             )
 
-          // 🔥 CRESCIMENTO
           const crescimento =
             diasCultivo > 0
               ? (
@@ -173,7 +268,6 @@ export default function PrevisaoAbate({
                 ) / diasCultivo
               : 0
 
-          // 🔥 DIAS RESTANTES
           const diasRestantes =
             crescimento > 0
               ? Math.ceil(
@@ -184,7 +278,6 @@ export default function PrevisaoAbate({
                 )
               : 0
 
-          // 🔥 PREVISÃO
           const previsao =
             new Date()
 
@@ -193,123 +286,124 @@ export default function PrevisaoAbate({
             diasRestantes
           )
 
-          // 🔥 BIOMASSA FUTURA
-          const biomassaFutura =
-            (
-              Number(
-                lote.quantidade_inicial || 0
-              ) *
-              PESO_ABATE
-            ) / 1000
-
-          return {
-
+          const baseComBiometria = {
             ...lote,
-
+            quantidade_lote:
+              quantidadeLote,
             peso_atual:
               pesoAtual,
-
             crescimento,
+            data_base_previsao:
+              ultima.data_biometria,
+          }
 
+          const calculo =
+            calcularBiomassaPorData(
+              baseComBiometria,
+              dataRetirada
+            )
+
+          return {
+            ...baseComBiometria,
+            data_prevista_retirada:
+              dataRetirada,
+            peso_futuro:
+              calculo.peso_futuro,
             dias_restantes:
               diasRestantes,
-
             previsao:
               previsao
                 .toISOString()
                 .split("T")[0],
-
             biomassa_futura:
-              biomassaFutura,
-
+              calculo.biomassa_futura,
           }
-
         })
 
       setDados(resultado)
-
     } catch (erro) {
-
       console.log(erro)
-
     }
   }
 
   useEffect(() => {
-
     if (user) {
-
       carregarDados()
-
     }
-
   }, [user])
 
   return (
-
     <div className="space-y-6">
-
-      {/* TÍTULO */}
       <div>
-
         <h1 className="text-3xl font-bold">
-          🔮 Previsão de Abate
+          Previsão de Abate
         </h1>
 
         <p className="text-gray-500 mt-2">
-          Estimativa baseada no crescimento
+          Estimativa baseada no crescimento e na data prevista de retirada
         </p>
-
       </div>
 
-      {/* SEM DADOS */}
       {dados.length === 0 && (
-
         <div className="bg-yellow-100 border border-yellow-300 p-6 rounded-2xl">
-
           <p className="font-bold">
             Nenhum lote encontrado.
           </p>
-
         </div>
-
       )}
 
-      {/* LISTA */}
       <div className="space-y-4">
-
         {dados.map((item) => (
-
           <div
             key={item.id}
             className="bg-white border rounded-2xl p-5 shadow"
           >
-
-            {/* TOPO */}
-            <div className="flex justify-between items-center">
-
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-
                 <h2 className="text-2xl font-bold">
                   {item.nome_lote}
                 </h2>
 
                 <p className="text-gray-500">
-                  Tanque:
-                  {" "}
-                  {item.tanque}
+                  Tanque: {item.tanque}
                 </p>
-
               </div>
 
+              <div className="grid w-full gap-3 sm:grid-cols-[1fr_auto] lg:max-w-xl">
+                <div>
+                  <label className="font-bold">
+                    Data prevista para retirada
+                  </label>
+
+                  <input
+                    type="date"
+                    value={
+                      item.data_prevista_retirada || ""
+                    }
+                    onChange={(e) =>
+                      atualizarDataRetirada(
+                        item.id,
+                        e.target.value
+                      )
+                    }
+                    className="w-full border p-3 rounded-xl mt-2"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    salvarDataRetirada(item)
+                  }
+                  className="self-end bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold"
+                >
+                  Salvar data
+                </button>
+              </div>
             </div>
 
-            {/* CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mt-5">
-
-              {/* PESO */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mt-5">
               <div className="bg-blue-100 p-4 rounded-xl">
-
                 <p className="text-sm text-blue-700">
                   Peso Atual
                 </p>
@@ -319,12 +413,9 @@ export default function PrevisaoAbate({
                     item.peso_atual || 0
                   ).toFixed(2)} g
                 </h3>
-
               </div>
 
-              {/* CRESCIMENTO */}
               <div className="bg-green-100 p-4 rounded-xl">
-
                 <p className="text-sm text-green-700">
                   Crescimento
                 </p>
@@ -334,12 +425,9 @@ export default function PrevisaoAbate({
                     item.crescimento || 0
                   ).toFixed(2)} g/dia
                 </h3>
-
               </div>
 
-              {/* DIAS */}
               <div className="bg-yellow-100 p-4 rounded-xl">
-
                 <p className="text-sm text-yellow-700">
                   Dias Restantes
                 </p>
@@ -347,25 +435,31 @@ export default function PrevisaoAbate({
                 <h3 className="text-xl font-bold text-yellow-700">
                   {item.dias_restantes}
                 </h3>
-
               </div>
 
-              {/* PREVISÃO */}
               <div className="bg-purple-100 p-4 rounded-xl">
-
                 <p className="text-sm text-purple-700">
-                  Data Prevista
+                  Data Meta 900g
                 </p>
 
                 <h3 className="text-xl font-bold text-purple-700">
                   {item.previsao}
                 </h3>
-
               </div>
 
-              {/* BIOMASSA */}
-              <div className="bg-red-100 p-4 rounded-xl">
+              <div className="bg-cyan-100 p-4 rounded-xl">
+                <p className="text-sm text-cyan-700">
+                  Peso na Retirada
+                </p>
 
+                <h3 className="text-xl font-bold text-cyan-700">
+                  {Number(
+                    item.peso_futuro || 0
+                  ).toFixed(2)} g
+                </h3>
+              </div>
+
+              <div className="bg-red-100 p-4 rounded-xl">
                 <p className="text-sm text-red-700">
                   Biomassa Futura
                 </p>
@@ -375,17 +469,11 @@ export default function PrevisaoAbate({
                     item.biomassa_futura || 0
                   ).toFixed(2)} kg
                 </h3>
-
               </div>
-
             </div>
-
           </div>
-
         ))}
-
       </div>
-
     </div>
   )
 }

@@ -20,6 +20,12 @@ export default function Tanques({
   const [produto, setProduto] =
     useState("Tilápia")
 
+  const [numeroLote, setNumeroLote] =
+    useState("")
+
+  const [dataPovoamento, setDataPovoamento] =
+    useState("")
+
   const [volume, setVolume] =
     useState("")
 
@@ -38,10 +44,16 @@ export default function Tanques({
   const [dados, setDados] =
     useState([])
 
+  const [lotes, setLotes] =
+    useState([])
+
   const [loading, setLoading] =
     useState(false)
 
   const [editando, setEditando] =
+    useState(null)
+
+  const [loteEditando, setLoteEditando] =
     useState(null)
 
   // 🔥 CALCULAR DENSIDADE
@@ -112,11 +124,98 @@ export default function Tanques({
 
       setDados(data || [])
 
+      const {
+        data: dadosLotes,
+      } = await supabase
+        .from("lotes")
+        .select("id, nome_lote, tanque, data_povoamento, created_at")
+        .eq(
+          "user_id",
+          user.id
+        )
+        .order(
+          "data_povoamento",
+          {
+            ascending: false,
+          }
+        )
+
+      setLotes(dadosLotes || [])
+
     } catch (erro) {
 
       console.log(erro)
 
     }
+  }
+
+  async function salvarLoteDoTanque() {
+
+    if (
+      !numeroLote.trim() &&
+      !dataPovoamento
+    ) {
+      return null
+    }
+
+    const biomassa =
+      (
+        Number(quantidade || 0) *
+        Number(peso || 0)
+      ) / 1000
+
+    const payload = {
+
+      user_id:
+        user.id,
+
+      nome_lote:
+        numeroLote,
+
+      tanque:
+        nome,
+
+      especie:
+        produto,
+
+      quantidade:
+        Number(quantidade),
+
+      peso_inicial:
+        Number(peso),
+
+      biomassa:
+        Number(biomassa),
+
+      data_povoamento:
+        dataPovoamento || null,
+
+      fornecedor:
+        "",
+
+    }
+
+    const query = loteEditando
+      ? supabase
+          .from("lotes")
+          .update(payload)
+          .eq("id", loteEditando)
+      : supabase
+          .from("lotes")
+          .insert([
+            payload,
+          ])
+
+    const {
+      error,
+    } = await query
+
+    if (error) {
+      console.log(error)
+      return error
+    }
+
+    return null
   }
 
   // 🔥 SALVAR
@@ -185,6 +284,18 @@ export default function Tanques({
           return
         }
 
+        const erroLote =
+          await salvarLoteDoTanque()
+
+        if (erroLote) {
+
+          alert(
+            erroLote.message
+          )
+
+          return
+        }
+
         alert(
           "Tanque atualizado!"
         )
@@ -240,6 +351,18 @@ export default function Tanques({
           return
         }
 
+        const erroLote =
+          await salvarLoteDoTanque()
+
+        if (erroLote) {
+
+          alert(
+            erroLote.message
+          )
+
+          return
+        }
+
         alert(
           "Tanque salvo!"
         )
@@ -276,6 +399,21 @@ export default function Tanques({
       item.produto
     )
 
+    const loteAtual =
+      lotesDoTanque(item.nome)[0]
+
+    setLoteEditando(
+      loteAtual?.id || null
+    )
+
+    setNumeroLote(
+      loteAtual?.nome_lote || ""
+    )
+
+    setDataPovoamento(
+      loteAtual?.data_povoamento || ""
+    )
+
     setVolume(item.volume)
 
     setQuantidade(
@@ -303,6 +441,8 @@ export default function Tanques({
 
     setEditando(null)
 
+    setLoteEditando(null)
+
     setNome("")
 
     setTipo("")
@@ -310,6 +450,10 @@ export default function Tanques({
     setProduto(
       "Tilápia"
     )
+
+    setNumeroLote("")
+
+    setDataPovoamento("")
 
     setVolume("")
 
@@ -358,6 +502,46 @@ export default function Tanques({
       console.log(erro)
 
     }
+  }
+
+  function normalizar(
+    valor
+  ) {
+    return String(valor || "")
+      .trim()
+      .toLowerCase()
+  }
+
+  function lotesDoTanque(
+    nomeTanque
+  ) {
+    return lotes.filter(
+      (lote) =>
+        normalizar(lote.tanque) ===
+        normalizar(nomeTanque)
+    )
+  }
+
+  function dataBR(
+    data
+  ) {
+    if (!data) return "-"
+
+    const [
+      ano,
+      mes,
+      dia,
+    ] = String(data).split("-")
+
+    if (
+      !ano ||
+      !mes ||
+      !dia
+    ) {
+      return data
+    }
+
+    return `${dia}/${mes}/${ano}`
   }
 
   useEffect(() => {
@@ -528,6 +712,47 @@ export default function Tanques({
 
         </div>
 
+        {/* LOTE */}
+        <div>
+
+          <label className="font-bold">
+            Número do Lote
+          </label>
+
+          <input
+            type="text"
+            value={numeroLote}
+            onChange={(e) =>
+              setNumeroLote(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+            placeholder="Ex: L-2026-001"
+          />
+
+        </div>
+
+        {/* DATA POVOAMENTO */}
+        <div>
+
+          <label className="font-bold">
+            Data de Povoamento
+          </label>
+
+          <input
+            type="date"
+            value={dataPovoamento}
+            onChange={(e) =>
+              setDataPovoamento(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+          />
+
+        </div>
+
         {/* VOLUME */}
         <div>
 
@@ -597,14 +822,16 @@ export default function Tanques({
         <div>
 
           <label className="font-bold">
-            Densidade Atual
+            Densidade Calculada
           </label>
 
           <input
-            type="number"
-            value={densidade}
+            type="text"
+            value={`${Number(
+              densidade || 0
+            ).toFixed(2)} kg/m³`}
             readOnly
-            className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold"
+            className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-blue-700"
           />
 
         </div>
@@ -703,6 +930,14 @@ export default function Tanques({
               </th>
 
               <th className="p-3 text-left">
+                Lotes
+              </th>
+
+              <th className="p-3 text-left">
+                Povoamento
+              </th>
+
+              <th className="p-3 text-left">
                 Volume
               </th>
 
@@ -732,7 +967,21 @@ export default function Tanques({
 
           <tbody>
 
-            {dados.map((item) => (
+            {dados.map((item) => {
+
+              const lotesTanque =
+                lotesDoTanque(item.nome)
+
+              const numerosLotes =
+                lotesTanque
+                  .map((lote) => lote.nome_lote)
+                  .filter(Boolean)
+                  .join(", ")
+
+              const dataPovoamentoMaisRecente =
+                lotesTanque[0]?.data_povoamento
+
+              return (
 
               <tr
                 key={item.id}
@@ -749,6 +998,16 @@ export default function Tanques({
 
                 <td className="p-3">
                   {item.produto}
+                </td>
+
+                <td className="p-3 font-bold text-slate-700">
+                  {numerosLotes || "-"}
+                </td>
+
+                <td className="p-3">
+                  {dataBR(
+                    dataPovoamentoMaisRecente
+                  )}
                 </td>
 
                 <td className="p-3">
@@ -831,7 +1090,9 @@ export default function Tanques({
 
               </tr>
 
-            ))}
+              )
+
+            })}
 
           </tbody>
 

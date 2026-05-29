@@ -2,27 +2,26 @@ import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
 
 export default function Lotes({ user }) {
-  const [nomeLote, setNomeLote] = useState("")
-  const [tanque, setTanque] = useState("")
-  const [especie, setEspecie] = useState("Tilápia")
-  const [quantidade, setQuantidade] = useState("")
-  const [pesoInicial, setPesoInicial] = useState("")
-  const [dataPovoamento, setDataPovoamento] = useState("")
-  const [fornecedor, setFornecedor] = useState("")
-
-  const [dados, setDados] = useState([])
   const [tanques, setTanques] = useState([])
+  const [dados, setDados] = useState([])
+
+  const [tipoLocal, setTipoLocal] = useState("tanque")
+  const [tanque, setTanque] = useState("")
+  const [outroLocal, setOutroLocal] = useState("")
+  const [dataManutencao, setDataManutencao] = useState("")
+  const [servicoExecutado, setServicoExecutado] = useState("")
+
   const [loading, setLoading] = useState(false)
   const [editando, setEditando] = useState(null)
 
-  const biomassa =
-    (Number(quantidade || 0) * Number(pesoInicial || 0)) / 1000
+  function dataBR(data) {
+    if (!data) return "-"
 
-  function formatar(valor) {
-    return Number(valor || 0).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
+    const [ano, mes, dia] = String(data).split("-")
+
+    if (!ano || !mes || !dia) return data
+
+    return `${dia}/${mes}/${ano}`
   }
 
   async function carregarDados() {
@@ -31,37 +30,23 @@ export default function Lotes({ user }) {
         .from("tanques")
         .select("nome")
         .eq("user_id", user.id)
-
-      const nomesTanques = dadosTanques?.map((t) => t.nome) || []
+        .order("nome", { ascending: true })
 
       setTanques(dadosTanques || [])
 
-      const { data: lotes } = await supabase
-        .from("lotes")
+      const { data: manutencoes, error } = await supabase
+        .from("manutencao")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
+        .order("data_manutencao", { ascending: false })
 
-      const lotesValidos =
-        lotes?.filter((item) =>
-          nomesTanques.includes(item.tanque)
-        ) || []
-
-      const lotesInvalidos =
-        lotes?.filter((item) =>
-          !nomesTanques.includes(item.tanque)
-        ) || []
-
-      if (lotesInvalidos.length > 0) {
-        const idsInvalidos = lotesInvalidos.map((item) => item.id)
-
-        await supabase
-          .from("lotes")
-          .delete()
-          .in("id", idsInvalidos)
+      if (error) {
+        console.log(error)
+        setDados([])
+        return
       }
 
-      setDados(lotesValidos)
+      setDados(manutencoes || [])
     } catch (erro) {
       console.log(erro)
     }
@@ -71,21 +56,29 @@ export default function Lotes({ user }) {
     e.preventDefault()
     setLoading(true)
 
+    const local =
+      tipoLocal === "tanque"
+        ? tanque
+        : outroLocal
+
     const payload = {
       user_id: user.id,
-      nome_lote: nomeLote,
-      tanque,
-      especie,
-      quantidade: Number(quantidade),
-      peso_inicial: Number(pesoInicial),
-      biomassa: Number(biomassa),
-      data_povoamento: dataPovoamento,
-      fornecedor,
+      tipo_local: tipoLocal,
+      tanque: tipoLocal === "tanque" ? tanque : null,
+      outro_local: tipoLocal === "outros" ? outroLocal : null,
+      local,
+      data_manutencao: dataManutencao,
+      servico_executado: servicoExecutado,
     }
 
     const query = editando
-      ? supabase.from("lotes").update(payload).eq("id", editando)
-      : supabase.from("lotes").insert([payload])
+      ? supabase
+          .from("manutencao")
+          .update(payload)
+          .eq("id", editando)
+      : supabase
+          .from("manutencao")
+          .insert([payload])
 
     const { error } = await query
 
@@ -99,18 +92,20 @@ export default function Lotes({ user }) {
     carregarDados()
     setLoading(false)
 
-    alert(editando ? "Lote atualizado!" : "Lote salvo!")
+    alert(editando ? "Manutenção atualizada!" : "Manutenção salva!")
   }
 
   function editar(item) {
+    const tipo =
+      item.tipo_local ||
+      (item.tanque ? "tanque" : "outros")
+
     setEditando(item.id)
-    setNomeLote(item.nome_lote || "")
+    setTipoLocal(tipo)
     setTanque(item.tanque || "")
-    setEspecie(item.especie || "Tilápia")
-    setQuantidade(item.quantidade || "")
-    setPesoInicial(item.peso_inicial || "")
-    setDataPovoamento(item.data_povoamento || "")
-    setFornecedor(item.fornecedor || "")
+    setOutroLocal(item.outro_local || item.local || "")
+    setDataManutencao(item.data_manutencao || "")
+    setServicoExecutado(item.servico_executado || "")
 
     window.scrollTo({
       top: 0,
@@ -120,24 +115,27 @@ export default function Lotes({ user }) {
 
   function limpar() {
     setEditando(null)
-    setNomeLote("")
+    setTipoLocal("tanque")
     setTanque("")
-    setEspecie("Tilápia")
-    setQuantidade("")
-    setPesoInicial("")
-    setDataPovoamento("")
-    setFornecedor("")
+    setOutroLocal("")
+    setDataManutencao("")
+    setServicoExecutado("")
   }
 
   async function excluir(id) {
-    if (!confirm("Excluir lote?")) return
+    if (!confirm("Excluir manutenção?")) return
 
     const { error } = await supabase
-      .from("lotes")
+      .from("manutencao")
       .delete()
       .eq("id", id)
 
-    if (!error) carregarDados()
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    carregarDados()
   }
 
   useEffect(() => {
@@ -147,9 +145,9 @@ export default function Lotes({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">🐟 Lotes</h1>
+        <h1 className="text-3xl font-bold">Manutenção</h1>
         <p className="text-gray-500 mt-1">
-          Controle de povoamento dos tanques
+          Registro de serviços executados nos tanques ou em outros pontos da operação
         </p>
       </div>
 
@@ -158,100 +156,72 @@ export default function Lotes({ user }) {
         className="bg-white p-6 rounded-2xl shadow grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
       >
         <div>
-          <label className="font-bold">Nome do Lote</label>
-          <input
-            type="text"
-            value={nomeLote}
-            onChange={(e) => setNomeLote(e.target.value)}
-            className="w-full border p-3 rounded-xl mt-2"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="font-bold">Tanque</label>
+          <label className="font-bold">Local</label>
           <select
-            value={tanque}
-            onChange={(e) => setTanque(e.target.value)}
+            value={tipoLocal}
+            onChange={(e) => {
+              setTipoLocal(e.target.value)
+              setTanque("")
+              setOutroLocal("")
+            }}
             className="w-full border p-3 rounded-xl mt-2"
-            required
           >
-            <option value="">Selecione</option>
-
-            {tanques.map((item, index) => (
-              <option key={index} value={item.nome}>
-                {item.nome}
-              </option>
-            ))}
+            <option value="tanque">Tanque</option>
+            <option value="outros">Outros</option>
           </select>
         </div>
 
-        <div>
-          <label className="font-bold">Espécie</label>
-          <select
-            value={especie}
-            onChange={(e) => setEspecie(e.target.value)}
-            className="w-full border p-3 rounded-xl mt-2"
-          >
-            <option value="Tilápia">Tilápia</option>
-            <option value="Tambaqui">Tambaqui</option>
-            <option value="Pirarucu">Pirarucu</option>
-            <option value="Lambari">Lambari</option>
-            <option value="Outros">Outros</option>
-          </select>
-        </div>
+        {tipoLocal === "tanque" ? (
+          <div>
+            <label className="font-bold">Tanque</label>
+            <select
+              value={tanque}
+              onChange={(e) => setTanque(e.target.value)}
+              className="w-full border p-3 rounded-xl mt-2"
+              required
+            >
+              <option value="">Selecione</option>
+
+              {tanques.map((item, index) => (
+                <option key={index} value={item.nome}>
+                  {item.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div>
+            <label className="font-bold">Outro local</label>
+            <input
+              type="text"
+              value={outroLocal}
+              onChange={(e) => setOutroLocal(e.target.value)}
+              className="w-full border p-3 rounded-xl mt-2"
+              placeholder="Ex: bomba, filtro, galpão"
+              required
+            />
+          </div>
+        )}
 
         <div>
-          <label className="font-bold">Quantidade</label>
-          <input
-            type="number"
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            className="w-full border p-3 rounded-xl mt-2"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="font-bold">Peso Inicial (g)</label>
-          <input
-            type="number"
-            step="0.01"
-            value={pesoInicial}
-            onChange={(e) => setPesoInicial(e.target.value)}
-            className="w-full border p-3 rounded-xl mt-2"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="font-bold">Biomassa Inicial</label>
-          <input
-            type="text"
-            readOnly
-            value={`${formatar(biomassa)} kg`}
-            className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-green-700"
-          />
-        </div>
-
-        <div>
-          <label className="font-bold">Data Povoamento</label>
+          <label className="font-bold">Data</label>
           <input
             type="date"
-            value={dataPovoamento}
-            onChange={(e) => setDataPovoamento(e.target.value)}
+            value={dataManutencao}
+            onChange={(e) => setDataManutencao(e.target.value)}
             className="w-full border p-3 rounded-xl mt-2"
             required
           />
         </div>
 
-        <div>
-          <label className="font-bold">Fornecedor</label>
-          <input
-            type="text"
-            value={fornecedor}
-            onChange={(e) => setFornecedor(e.target.value)}
-            className="w-full border p-3 rounded-xl mt-2"
+        <div className="md:col-span-2 lg:col-span-3">
+          <label className="font-bold">Serviço executado</label>
+          <textarea
+            value={servicoExecutado}
+            onChange={(e) => setServicoExecutado(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2 min-h-28"
+            placeholder="Descreva o serviço realizado"
+            required
           />
         </div>
 
@@ -278,20 +248,15 @@ export default function Lotes({ user }) {
 
       <div className="bg-white p-6 rounded-2xl shadow overflow-auto">
         <h2 className="text-2xl font-bold mb-4">
-          📋 Lotes Cadastrados
+          Manutenções registradas
         </h2>
 
         <table className="w-full">
           <thead>
             <tr className="border-b bg-slate-100">
-              <th className="p-3 text-left">Lote</th>
-              <th className="p-3 text-left">Tanque</th>
-              <th className="p-3 text-left">Espécie</th>
-              <th className="p-3 text-left">Quantidade</th>
-              <th className="p-3 text-left">Peso Inicial</th>
-              <th className="p-3 text-left">Biomassa</th>
               <th className="p-3 text-left">Data</th>
-              <th className="p-3 text-left">Fornecedor</th>
+              <th className="p-3 text-left">Local</th>
+              <th className="p-3 text-left">Serviço executado</th>
               <th className="p-3 text-left">Ações</th>
             </tr>
           </thead>
@@ -299,16 +264,13 @@ export default function Lotes({ user }) {
           <tbody>
             {dados.map((item) => (
               <tr key={item.id} className="border-b hover:bg-slate-50">
-                <td className="p-3">{item.nome_lote}</td>
-                <td className="p-3">{item.tanque}</td>
-                <td className="p-3">{item.especie}</td>
-                <td className="p-3">{item.quantidade}</td>
-                <td className="p-3">{formatar(item.peso_inicial)} g</td>
-                <td className="p-3 font-bold text-green-700">
-                  {formatar(item.biomassa)} kg
+                <td className="p-3">{dataBR(item.data_manutencao)}</td>
+                <td className="p-3 font-bold">
+                  {item.local || item.tanque || item.outro_local || "-"}
                 </td>
-                <td className="p-3">{item.data_povoamento}</td>
-                <td className="p-3">{item.fornecedor || "-"}</td>
+                <td className="p-3 min-w-[320px]">
+                  {item.servico_executado}
+                </td>
                 <td className="p-3">
                   <div className="flex gap-2">
                     <button
