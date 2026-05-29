@@ -131,6 +131,21 @@ export default function PrevisaoAbate({
   async function carregarDados() {
     try {
       const {
+        data: tanques,
+      } = await supabase
+        .from("tanques")
+        .select("nome")
+        .eq(
+          "user_id",
+          user.id
+        )
+
+      const nomesTanques =
+        tanques?.map(
+          (tanque) => tanque.nome
+        ) || []
+
+      const {
         data: lotes,
         error: erroLotes,
       } = await supabase
@@ -167,8 +182,16 @@ export default function PrevisaoAbate({
         return
       }
 
+      const lotesValidos =
+        lotes.filter(
+          (lote) =>
+            nomesTanques.includes(
+              lote.tanque
+            )
+        )
+
       const resultado =
-        lotes.map((lote) => {
+        lotesValidos.map((lote) => {
           const quantidadeLote =
             Number(
               lote.quantidade ||
@@ -439,11 +462,11 @@ export default function PrevisaoAbate({
 
               <div className="bg-purple-100 p-4 rounded-xl">
                 <p className="text-sm text-purple-700">
-                  Data Meta 900g
+                  Data da Retirada
                 </p>
 
                 <h3 className="text-xl font-bold text-purple-700">
-                  {item.previsao}
+                  {item.data_prevista_retirada || item.previsao}
                 </h3>
               </div>
 

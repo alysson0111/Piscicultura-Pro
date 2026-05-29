@@ -17,6 +17,21 @@ export default function Crescimento({
 
     try {
 
+      const {
+        data: tanques,
+      } = await supabase
+        .from("tanques")
+        .select("nome")
+        .eq(
+          "user_id",
+          user.id
+        )
+
+      const nomesTanques =
+        tanques?.map(
+          (tanque) => tanque.nome
+        ) || []
+
       // LOTES
       const {
         data: lotes,
@@ -61,7 +76,12 @@ export default function Crescimento({
 
       // SEGURANÇA
       const listaLotes =
-        lotes || []
+        lotes?.filter(
+          (lote) =>
+            nomesTanques.includes(
+              lote.tanque
+            )
+        ) || []
 
       const listaBiometrias =
         biometrias || []

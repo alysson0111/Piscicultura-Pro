@@ -35,6 +35,16 @@ export default function Login({
     loading ||
     recuperandoSenha
 
+  function enviarLogin(e) {
+    e.preventDefault()
+
+    if (formularioInvalido) {
+      return
+    }
+
+    entrar()
+  }
+
   async function entrar() {
     try {
       setLoading(true)
@@ -179,7 +189,10 @@ export default function Login({
         </section>
 
         <section className="flex items-center justify-center p-6 sm:p-10">
-          <div className="w-full max-w-md space-y-7">
+          <form
+            onSubmit={enviarLogin}
+            className="w-full max-w-md space-y-7"
+          >
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
                 Acesso seguro
@@ -248,7 +261,7 @@ export default function Login({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <button
-                onClick={entrar}
+                type="submit"
                 disabled={formularioInvalido}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
@@ -257,6 +270,7 @@ export default function Login({
               </button>
 
               <button
+                type="button"
                 onClick={cadastrar}
                 disabled={formularioInvalido}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
@@ -269,7 +283,7 @@ export default function Login({
             <p className="text-xs leading-5 text-slate-500">
               Para criar uma conta, informe um e-mail válido e uma senha com pelo menos 6 caracteres.
             </p>
-          </div>
+          </form>
         </section>
       </div>
     </div>

@@ -471,15 +471,64 @@ export default function Tanques({
     id
   ) {
 
+    const tanqueExcluido =
+      dados.find(
+        (item) => item.id === id
+      )
+
+    const nomeTanque =
+      tanqueExcluido?.nome
+
     const confirmar =
       confirm(
-        "Excluir tanque?"
+        "Excluir tanque e todos os dados vinculados a ele?"
       )
 
     if (!confirmar)
       return
 
     try {
+
+      if (nomeTanque) {
+
+        const tabelasVinculadas = [
+          "lotes",
+          "biometria",
+          "mortalidade",
+          "custos",
+          "vendas",
+          "parametros",
+          "manutencao",
+        ]
+
+        for (const tabela of tabelasVinculadas) {
+
+          const {
+            error: erroVinculado,
+          } = await supabase
+            .from(tabela)
+            .delete()
+            .eq(
+              "user_id",
+              user.id
+            )
+            .eq(
+              "tanque",
+              nomeTanque
+            )
+
+          if (erroVinculado) {
+
+            console.log(erroVinculado)
+
+            alert(
+              erroVinculado.message
+            )
+
+            return
+          }
+        }
+      }
 
       const {
         error,

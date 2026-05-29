@@ -135,9 +135,9 @@ export default function Dashboard({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100">
       <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 lg:px-6">
+        <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-3 py-5 sm:px-4 lg:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
@@ -176,7 +176,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid min-w-0 gap-3 md:grid-cols-3">
             <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
                 Operação
@@ -207,7 +207,7 @@ export default function Dashboard({
         </div>
       </div>
 
-      <main className="mx-auto grid w-full max-w-7xl min-w-0 gap-5 px-3 py-5 sm:px-4 lg:grid-cols-[250px_minmax(0,1fr)] lg:px-6">
+      <main className="mx-auto grid w-full max-w-7xl min-w-0 gap-5 overflow-x-hidden px-3 py-5 sm:px-4 lg:grid-cols-[250px_minmax(0,1fr)] lg:px-6">
         <aside className="min-w-0 h-fit rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
           <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
             {menu.map((item) => (

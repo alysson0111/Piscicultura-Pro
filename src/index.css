@@ -19,6 +19,21 @@ body {
   margin: 0;
 }
 
+#root {
+  isolation: isolate;
+}
+
+.overflow-auto,
+.overflow-x-auto {
+  max-width: 100%;
+}
+
+table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
 img,
 svg,
 video,

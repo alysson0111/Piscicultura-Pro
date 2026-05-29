@@ -102,9 +102,30 @@ export default function RcaTanques({ user }) {
             0
           )
 
+        const custoTotal = listaCustos
+          .filter(
+            (c) =>
+              String(c.tanque || "").trim().toLowerCase() === nomeTanque
+          )
+          .reduce(
+            (acc, item) =>
+              acc +
+              Number(
+                item.valor_total ||
+                  item.valor ||
+                  0
+              ),
+            0
+          )
+
         const rca =
           ganhoBiomassa > 0
             ? racao / ganhoBiomassa
+            : 0
+
+        const precoKgProduzido =
+          ganhoBiomassa > 0
+            ? custoTotal / ganhoBiomassa
             : 0
 
         return {
@@ -113,6 +134,8 @@ export default function RcaTanques({ user }) {
           biomassaAtual,
           ganhoBiomassa,
           racao,
+          custoTotal,
+          precoKgProduzido,
           rca,
         }
       })
@@ -145,6 +168,16 @@ export default function RcaTanques({ user }) {
   const rcaMedio =
     ganhoTotal > 0
       ? racaoTotal / ganhoTotal
+      : 0
+
+  const custoTotal = dados.reduce(
+    (acc, item) => acc + Number(item.custoTotal || 0),
+    0
+  )
+
+  const precoKgMedio =
+    ganhoTotal > 0
+      ? custoTotal / ganhoTotal
       : 0
 
   return (
@@ -183,7 +216,7 @@ export default function RcaTanques({ user }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-blue-100 p-5 rounded-2xl shadow">
           <p className="text-blue-700">
             Biomassa Total
@@ -213,6 +246,16 @@ export default function RcaTanques({ user }) {
             {formatar(rcaMedio)}
           </h2>
         </div>
+
+        <div className="bg-emerald-100 p-5 rounded-2xl shadow">
+          <p className="text-emerald-700">
+            Preço por kg produzido
+          </p>
+
+          <h2 className="text-3xl font-bold text-emerald-700 mt-2">
+            R$ {formatar(precoKgMedio)}
+          </h2>
+        </div>
       </div>
 
       {dados.length === 0 && (
@@ -232,6 +275,8 @@ export default function RcaTanques({ user }) {
               <th className="p-4 text-left">Biomassa Atual</th>
               <th className="p-4 text-left">Ganho Biomassa</th>
               <th className="p-4 text-left">Ração</th>
+              <th className="p-4 text-left">Custo Total</th>
+              <th className="p-4 text-left">Preço/kg Produzido</th>
               <th className="p-4 text-left">RCA</th>
               <th className="p-4 text-left">Status</th>
             </tr>
@@ -256,6 +301,14 @@ export default function RcaTanques({ user }) {
 
                 <td className="p-4">
                   {formatar(item.racao)} kg
+                </td>
+
+                <td className="p-4">
+                  R$ {formatar(item.custoTotal)}
+                </td>
+
+                <td className="p-4 font-bold text-emerald-700">
+                  R$ {formatar(item.precoKgProduzido)}
                 </td>
 
                 <td className="p-4 font-bold">

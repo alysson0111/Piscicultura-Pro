@@ -9,6 +9,8 @@ export default function Relatorios({ user }) {
   const [tanqueSelecionado, setTanqueSelecionado] = useState("todos")
   const [tanques, setTanques] = useState([])
   const [biometrias, setBiometrias] = useState([])
+  const [custosDetalhados, setCustosDetalhados] = useState([])
+  const [custosPorCategoria, setCustosPorCategoria] = useState([])
 
   const [relatorio, setRelatorio] = useState({
     biomassa: 0,
@@ -18,7 +20,9 @@ export default function Relatorios({ user }) {
     vendas: 0,
     lucro: 0,
     racao: 0,
+    valorRacao: 0,
     rca: 0,
+    valorKgProduzido: 0,
   })
 
   function moeda(valor) {
@@ -81,9 +85,21 @@ export default function Relatorios({ user }) {
         )
       }
 
+      function filtrarCustos(lista) {
+        const todosCustos = lista || []
+
+        if (tanqueSelecionado === "todos") {
+          return todosCustos
+        }
+
+        return todosCustos.filter(
+          (item) => normalizar(item.tanque) === normalizar(tanqueSelecionado)
+        )
+      }
+
       const biometriaFiltrada = filtrarTanque(biometria)
       const mortalidadeFiltrada = filtrarTanque(mortalidade)
-      const custosFiltrados = filtrarTanque(custos)
+      const custosFiltrados = filtrarCustos(custos)
       const vendasFiltradas = filtrarTanque(vendas)
 
       let biomassa = 0
@@ -135,8 +151,57 @@ export default function Relatorios({ user }) {
           0
         )
 
+      const valorRacao = custosFiltrados
+        .filter((item) => normalizar(item.categoria) === "ração")
+        .reduce(
+          (acc, item) =>
+            acc +
+            Number(item.valor_total || item.valor || 0),
+          0
+        )
+
+      const resumoCustos = Object.values(
+        custosFiltrados.reduce((acc, item) => {
+          const categoriaBase = item.categoria || "Outros"
+          const categoria =
+            normalizar(categoriaBase) === "outros" &&
+            item.descricao
+              ? `Outros - ${item.descricao}`
+              : categoriaBase
+
+          if (!acc[categoria]) {
+            acc[categoria] = {
+              categoria,
+              kg: 0,
+              valor: 0,
+            }
+          }
+
+          acc[categoria].kg += Number(
+            item.peso_total_baixa ||
+              item.quantidade_racao ||
+              0
+          )
+
+          acc[categoria].valor += Number(
+            item.valor_total ||
+              item.valor ||
+              0
+          )
+
+          return acc
+        }, {})
+      ).sort((a, b) =>
+        a.categoria.localeCompare(b.categoria)
+      )
+
       const lucro = totalVendas - totalCustos
       const rca = biomassa > 0 && totalRacao > 0 ? totalRacao / biomassa : 0
+
+      const valorKgProduzido =
+        biomassa > 0
+          ? totalCustos / biomassa
+          : 0
 
       setRelatorio({
         biomassa,
@@ -146,8 +211,19 @@ export default function Relatorios({ user }) {
         vendas: totalVendas,
         lucro,
         racao: totalRacao,
+        valorRacao,
         rca,
+        valorKgProduzido,
       })
+
+      const custosOrdenados = [...custosFiltrados].sort(
+        (a, b) =>
+          new Date(b.data_custo || b.created_at || 0) -
+          new Date(a.data_custo || a.created_at || 0)
+      )
+
+      setCustosDetalhados(custosOrdenados)
+      setCustosPorCategoria(resumoCustos)
 
       // Datas crescentes de baixo para cima:
       // mais antiga embaixo, mais recente em cima
@@ -179,17 +255,86 @@ export default function Relatorios({ user }) {
 
     autoTable(doc, {
       startY: 35,
-      head: [["Indicador", "Valor"]],
+      head: [["Indicador financeiro", "Kg / Quantidade", "Valor"]],
+      body: [
+        ...custosPorCategoria.map((item) => [
+          item.categoria,
+          item.kg > 0 ? `${moeda(item.kg)} kg` : "-",
+          `R$ ${moeda(item.valor)}`,
+        ]),
+        ["Vendas", "-", `R$ ${moeda(relatorio.vendas)}`],
+        ["Lucro", "-", `R$ ${moeda(relatorio.lucro)}`],
+        ["Custo Total", "-", `R$ ${moeda(relatorio.custos)}`],
+      ],
+    })
+
+    const yOperacional =
+      (doc.lastAutoTable?.finalY || 35) + 12
+
+    doc.setFontSize(14)
+    doc.text("Indicadores operacionais", 14, yOperacional)
+
+    autoTable(doc, {
+      startY: yOperacional + 5,
+      head: [["Indicador", "Quantidade"]],
       body: [
         ["Biomassa Total", `${moeda(relatorio.biomassa)} kg`],
         ["Peixes", relatorio.peixes],
         ["Mortalidade", relatorio.mortalidade],
-        ["Custos", `R$ ${moeda(relatorio.custos)}`],
-        ["Vendas", `R$ ${moeda(relatorio.vendas)}`],
-        ["Lucro", `R$ ${moeda(relatorio.lucro)}`],
-        ["Ração", `${moeda(relatorio.racao)} kg`],
         ["RCA", moeda(relatorio.rca)],
+        ["Valor kg peixe produzido", `R$ ${moeda(relatorio.valorKgProduzido)}`],
       ],
+    })
+
+    const yCustos =
+      (doc.lastAutoTable?.finalY || 35) + 12
+
+    doc.setFontSize(14)
+    doc.text("Custos cadastrados", 14, yCustos)
+
+    autoTable(doc, {
+      startY: yCustos + 5,
+      head: [[
+        "Data",
+        "Tanque",
+        "Categoria",
+        "Descrição",
+        "Baixa",
+        "Peso",
+        "Valor",
+      ]],
+      body:
+        custosDetalhados.length > 0
+          ? custosDetalhados.map((item) => [
+              dataBR(item.data_custo),
+              item.tanque || "Geral",
+              item.categoria || "-",
+              item.descricao || "-",
+              `${Number(item.quantidade_baixa || 0).toFixed(2)} sacos`,
+              `${Number(item.peso_total_baixa || 0).toFixed(2)} kg`,
+              `R$ ${moeda(item.valor_total || item.valor)}`,
+            ])
+          : [[
+              "-",
+              "-",
+              "-",
+              "Nenhum custo cadastrado",
+              "-",
+              "-",
+              "-",
+            ]],
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [37, 99, 235],
+      },
+      columnStyles: {
+        3: {
+          cellWidth: 45,
+        },
+      },
     })
 
     doc.save("relatorio.pdf")
