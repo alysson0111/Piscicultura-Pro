@@ -15,8 +15,27 @@ export default function App() {
   const [bloqueio, setBloqueio] =
     useState("")
 
+  const [modoRedefinirSenha, setModoRedefinirSenha] =
+    useState(false)
+
   const [loading, setLoading] =
     useState(true)
+
+  function linkRedefinicaoSenha() {
+    const params =
+      new URLSearchParams(window.location.search)
+
+    const hashParams =
+      new URLSearchParams(
+        window.location.hash.replace("#", "")
+      )
+
+    return (
+      params.get("reset") === "senha" ||
+      params.get("type") === "recovery" ||
+      hashParams.get("type") === "recovery"
+    )
+  }
 
   async function carregarPerfil(
     usuario
@@ -157,6 +176,10 @@ export default function App() {
 
   useEffect(() => {
     async function carregarSessao() {
+      setModoRedefinirSenha(
+        linkRedefinicaoSenha()
+      )
+
       const {
         data,
       } = await supabase.auth.getSession()
@@ -210,6 +233,18 @@ export default function App() {
     return (
       <Login
         onLogin={setUser}
+        modoRedefinirSenha={modoRedefinirSenha}
+        onSenhaRedefinida={() => setModoRedefinirSenha(false)}
+      />
+    )
+  }
+
+  if (modoRedefinirSenha) {
+    return (
+      <Login
+        onLogin={setUser}
+        modoRedefinirSenha={modoRedefinirSenha}
+        onSenhaRedefinida={() => setModoRedefinirSenha(false)}
       />
     )
   }
