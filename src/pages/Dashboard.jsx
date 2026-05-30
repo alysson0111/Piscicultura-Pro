@@ -12,6 +12,7 @@ import {
   Scale,
   SlidersHorizontal,
   TrendingUp,
+  Users,
   Wallet,
   Wrench,
 } from "lucide-react"
@@ -22,6 +23,7 @@ import Custos from "./Custos"
 import Vendas from "./Vendas"
 import Relatorios from "./Relatorios"
 import Parametros from "./Parametros"
+import Usuarios from "./Usuarios"
 import Mortalidade from "./Mortalidade"
 import EstoqueRacao from "./EstoqueRacao"
 import Manutencao from "./Lotes"
@@ -32,12 +34,22 @@ import RcaTanques from "./RcaTanques"
 
 export default function Dashboard({
   user,
+  perfil,
   onLogout,
 }) {
   const [aba, setAba] =
     useState("tanques")
 
   const menu = [
+    ...(perfil?.tipo_usuario === "root"
+      ? [
+          {
+            nome: "Usuários",
+            valor: "usuarios",
+            icon: Users,
+          },
+        ]
+      : []),
     {
       nome: "Tanques",
       valor: "tanques",
@@ -109,6 +121,55 @@ export default function Dashboard({
     menu.find((item) => item.valor === aba) ||
     menu[0]
 
+  function avisoMensalidade() {
+    if (
+      !perfil ||
+      perfil.tipo_usuario === "root" ||
+      perfil.status_pagamento === "isento" ||
+      !perfil.data_vencimento
+    ) {
+      return null
+    }
+
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+
+    const vencimento =
+      new Date(perfil.data_vencimento)
+    vencimento.setHours(0, 0, 0, 0)
+
+    const dias =
+      Math.ceil(
+        (
+          vencimento -
+          hoje
+        ) /
+        (
+          1000 *
+          60 *
+          60 *
+          24
+        )
+      )
+
+    if (dias < -5 || dias > 5) {
+      return null
+    }
+
+    if (dias < 0) {
+      const diasAtraso =
+        Math.abs(dias)
+
+      return `Sua mensalidade esta atrasada ha ${diasAtraso} dia${diasAtraso > 1 ? "s" : ""}.`
+    }
+
+    if (dias === 0) {
+      return "Sua mensalidade vence hoje."
+    }
+
+    return `Sua mensalidade vence em ${dias} dia${dias > 1 ? "s" : ""}.`
+  }
+
   function Botao({
     nome,
     valor,
@@ -136,6 +197,12 @@ export default function Dashboard({
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100">
+      {avisoMensalidade() && (
+        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-3 text-center font-bold text-yellow-800">
+          {avisoMensalidade()}
+        </div>
+      )}
+
       <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-3 py-5 sm:px-4 lg:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -220,6 +287,7 @@ export default function Dashboard({
         </aside>
 
         <section className="min-w-0 overflow-hidden min-h-[640px] rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+          {aba === "usuarios" && <Usuarios user={user} />}
           {aba === "tanques" && <Tanques user={user} />}
           {aba === "biometria" && <Biometria user={user} />}
           {aba === "custos" && <Custos user={user} />}
