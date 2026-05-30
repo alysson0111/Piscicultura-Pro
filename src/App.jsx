@@ -197,11 +197,21 @@ export default function App() {
     const {
       data: listener,
     } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         const usuario =
           session?.user || null
 
         setUser(usuario)
+
+        if (
+          event === "PASSWORD_RECOVERY" ||
+          linkRedefinicaoSenha()
+        ) {
+          setModoRedefinirSenha(true)
+          setBloqueio("")
+          return
+        }
+
         carregarPerfil(usuario)
       }
     )

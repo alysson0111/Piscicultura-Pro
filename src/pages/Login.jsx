@@ -135,7 +135,7 @@ export default function Login({
       const {
         error,
       } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${urlBase}/?reset=senha`,
+        redirectTo: urlBase,
       })
 
       if (error) {
