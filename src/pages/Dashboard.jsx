@@ -178,7 +178,7 @@ export default function Dashboard({
     return (
       <button
         onClick={() => setAba(valor)}
-        className={`flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${
+        className={`flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold transition lg:justify-start ${
           aba === valor
             ? "bg-teal-600 text-white shadow-sm"
             : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
@@ -196,26 +196,26 @@ export default function Dashboard({
   }
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100 mobile-app-shell">
       {avisoMensalidade() && (
-        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-3 text-center font-bold text-yellow-800">
+        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-3 text-center text-sm font-bold text-yellow-800 sm:text-base">
           {avisoMensalidade()}
         </div>
       )}
 
-      <div className="border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-5 px-3 py-5 sm:px-4 lg:px-6">
+      <div className="border-b border-slate-200 bg-white/90 backdrop-blur mobile-topbar">
+        <div className="mx-auto flex w-full max-w-7xl min-w-0 flex-col gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm sm:h-12 sm:w-12">
                 <Fish
-                  size={28}
+                  size={26}
                   strokeWidth={2.4}
                 />
               </div>
 
-              <div>
-                <h1 className="text-2xl font-bold text-slate-950">
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-bold text-slate-950 sm:text-2xl">
                   Piscicultura PRO
                 </h1>
                 <p className="text-sm text-slate-500">
@@ -225,17 +225,19 @@ export default function Dashboard({
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+              <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:px-4">
                 <span className="font-medium text-slate-900">
                   Usuário:
                 </span>
                 {" "}
-                {user?.email}
+                <span className="break-all">
+                  {user?.email}
+                </span>
               </div>
 
               <button
                 onClick={onLogout}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
               >
                 <LogOut size={17} />
                 Sair
@@ -243,7 +245,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid min-w-0 gap-3 md:grid-cols-3">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
                 Operação
@@ -274,9 +276,9 @@ export default function Dashboard({
         </div>
       </div>
 
-      <main className="mx-auto grid w-full max-w-7xl min-w-0 gap-5 overflow-x-hidden px-3 py-5 sm:px-4 lg:grid-cols-[250px_minmax(0,1fr)] lg:px-6">
-        <aside className="min-w-0 h-fit rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-          <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
+      <main className="mx-auto grid w-full max-w-7xl min-w-0 gap-4 overflow-x-hidden px-3 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-5 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-5 lg:px-6">
+        <aside className="sticky top-0 z-20 -mx-3 min-w-0 border-y border-slate-200 bg-white p-2 shadow-sm sm:-mx-4 lg:static lg:mx-0 lg:h-fit lg:rounded-xl lg:border lg:shadow-sm">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0">
             {menu.map((item) => (
               <Botao
                 key={item.valor}
@@ -286,7 +288,7 @@ export default function Dashboard({
           </div>
         </aside>
 
-        <section className="min-w-0 overflow-hidden min-h-[640px] rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+        <section className="mobile-content-panel min-h-[640px] min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
           {aba === "usuarios" && <Usuarios user={user} />}
           {aba === "tanques" && <Tanques user={user} />}
           {aba === "biometria" && <Biometria user={user} />}

@@ -198,11 +198,11 @@ export default function Login({
 
   if (modoRedefinirSenha) {
     return (
-      <div className="min-h-screen bg-slate-100 p-4 text-slate-950">
-        <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center justify-center">
+      <div className="min-h-screen bg-slate-100 p-3 text-slate-950 sm:p-4">
+        <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-xl items-center justify-center sm:min-h-[calc(100vh-2rem)]">
           <form
             onSubmit={salvarNovaSenha}
-            className="w-full space-y-6 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl"
+            className="w-full space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xl sm:p-8"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600 text-white">
@@ -280,9 +280,9 @@ export default function Login({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 text-slate-950">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex flex-col justify-between bg-slate-950 p-8 text-white sm:p-10">
+    <div className="min-h-screen bg-slate-100 p-3 text-slate-950 sm:p-4">
+      <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:min-h-[calc(100vh-2rem)] lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="flex flex-col justify-between bg-slate-950 p-5 text-white sm:p-10">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500 text-white">
               <Fish
@@ -301,11 +301,11 @@ export default function Login({
             </div>
           </div>
 
-          <div className="py-16 lg:py-0">
+          <div className="py-8 sm:py-16 lg:py-0">
             <p className="text-sm font-semibold uppercase tracking-wide text-teal-300">
               Controle de produção
             </p>
-            <h2 className="mt-4 max-w-xl text-4xl font-bold leading-tight sm:text-5xl">
+            <h2 className="mt-4 max-w-xl text-3xl font-bold leading-tight sm:text-5xl">
               Dados de tanques, custos e biometria no mesmo painel.
             </h2>
             <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
@@ -313,9 +313,9 @@ export default function Login({
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-2xl font-bold">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4">
+              <p className="text-xl font-bold sm:text-2xl">
                 12
               </p>
               <p className="text-sm text-slate-300">
@@ -323,8 +323,8 @@ export default function Login({
               </p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-2xl font-bold">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4">
+              <p className="text-xl font-bold sm:text-2xl">
                 PDF
               </p>
               <p className="text-sm text-slate-300">
@@ -332,8 +332,8 @@ export default function Login({
               </p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-2xl font-bold">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3 sm:p-4">
+              <p className="text-xl font-bold sm:text-2xl">
                 XLS
               </p>
               <p className="text-sm text-slate-300">
@@ -343,7 +343,7 @@ export default function Login({
           </div>
         </section>
 
-        <section className="flex items-center justify-center p-6 sm:p-10">
+        <section className="flex items-center justify-center p-5 sm:p-10">
           <form
             onSubmit={enviarLogin}
             className="w-full max-w-md space-y-7"

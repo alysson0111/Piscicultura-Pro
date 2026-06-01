@@ -1,0 +1,19 @@
+{
+  "name": "Piscicultura PRO",
+  "short_name": "Piscicultura",
+  "description": "Sistema de gestao aquicola para tanques, biometria, custos e relatorios.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ body,
 
 body {
   margin: 0;
+  -webkit-text-size-adjust: 100%;
 }
 
 #root {
@@ -26,6 +27,8 @@ body {
 .overflow-auto,
 .overflow-x-auto {
   max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -34,9 +37,84 @@ table {
   border-collapse: collapse;
 }
 
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 img,
 svg,
 video,
 canvas {
   max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  body {
+    background: #f1f5f9;
+  }
+
+  .mobile-app-shell {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .mobile-topbar {
+    position: relative;
+    z-index: 30;
+  }
+
+  .mobile-content-panel {
+    border-radius: 12px;
+  }
+
+  .mobile-content-panel h1 {
+    font-size: 1.55rem;
+    line-height: 1.2;
+  }
+
+  .mobile-content-panel h2 {
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .mobile-content-panel .rounded-2xl {
+    border-radius: 12px;
+  }
+
+  .mobile-content-panel .p-6 {
+    padding: 1rem;
+  }
+
+  .mobile-content-panel .p-4 {
+    padding: 0.875rem;
+  }
+
+  .mobile-content-panel table {
+    font-size: 0.875rem;
+  }
+
+  .mobile-content-panel th,
+  .mobile-content-panel td {
+    padding: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .mobile-content-panel textarea,
+  .mobile-content-panel input,
+  .mobile-content-panel select {
+    min-height: 44px;
+  }
+
+  .mobile-content-panel button {
+    min-height: 44px;
+  }
 }
