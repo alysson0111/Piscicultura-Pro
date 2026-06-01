@@ -245,7 +245,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="hidden">
             <div className="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
                 Operação
