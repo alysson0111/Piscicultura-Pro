@@ -161,7 +161,7 @@ export default function Login({
     }
 
     if (novaSenha !== confirmarSenha) {
-      alert("As senhas nao conferem.")
+      alert("As senhas não conferem.")
       return
     }
 
@@ -215,7 +215,7 @@ export default function Login({
 
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                  Recuperacao de senha
+                  Recuperação de senha
                 </p>
                 <h1 className="text-2xl font-bold">
                   Criar nova senha
@@ -238,7 +238,7 @@ export default function Login({
                     value={novaSenha}
                     onChange={(e) => setNovaSenha(e.target.value)}
                     className="w-full border-0 bg-transparent p-0 text-sm outline-none"
-                    placeholder="minimo 6 caracteres"
+                    placeholder="mínimo 6 caracteres"
                     autoFocus
                   />
                 </div>
@@ -258,7 +258,7 @@ export default function Login({
                     value={confirmarSenha}
                     onChange={(e) => setConfirmarSenha(e.target.value)}
                     className="w-full border-0 bg-transparent p-0 text-sm outline-none"
-                    placeholder="repita a nova senha"
+                    placeholder="Repita a nova senha"
                   />
                 </div>
               </div>

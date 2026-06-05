@@ -7,20 +7,39 @@ export default function Biometria({ user }) {
 
   const [tanque, setTanque] = useState("")
   const [quantidade, setQuantidade] = useState("")
-  const [pesoMedio, setPesoMedio] = useState("")
+  const [pesoTotal, setPesoTotal] = useState("")
   const [dataBiometria, setDataBiometria] = useState("")
 
   const [loading, setLoading] = useState(false)
   const [editando, setEditando] = useState(null)
 
   const biomassa =
-    (Number(quantidade || 0) * Number(pesoMedio || 0)) / 1000
+    Number(pesoTotal || 0) / 1000
+
+  const pesoMedio =
+    Number(quantidade || 0) > 0
+      ? Number(pesoTotal || 0) /
+        Number(quantidade || 0)
+      : 0
 
   function formatar(valor) {
     return Number(valor || 0).toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })
+  }
+
+  function formatarPeso(valorGramas) {
+    const gramas =
+      Number(valorGramas || 0)
+
+    if (Math.abs(gramas) >= 1000) {
+      return `${formatar(
+        gramas / 1000
+      )} kg`
+    }
+
+    return `${formatar(gramas)} g`
   }
 
   async function carregarDados() {
@@ -78,27 +97,58 @@ export default function Biometria({ user }) {
   async function salvar(e) {
     e.preventDefault()
 
+    const peixesPesados =
+      Number(quantidade || 0)
+
+    if (peixesPesados < 10) {
+      alert(
+        "Informe no mínimo 10 peixes pesados para registrar a biometria."
+      )
+      return
+    }
+
     setLoading(true)
 
     const payload = {
       user_id: user.id,
       tanque,
-      quantidade: Number(quantidade),
+      quantidade: peixesPesados,
+      peso_total: Number(pesoTotal),
       peso_medio: Number(pesoMedio),
       biomassa: Number(biomassa),
       data_biometria: dataBiometria,
     }
 
-    const query = editando
-      ? supabase
-          .from("biometria")
-          .update(payload)
-          .eq("id", editando)
-      : supabase
-          .from("biometria")
-          .insert([payload])
+    const salvarComPayload = (dadosPayload) =>
+      editando
+        ? supabase
+            .from("biometria")
+            .update(dadosPayload)
+            .eq("id", editando)
+        : supabase
+            .from("biometria")
+            .insert([dadosPayload])
 
-    const { error } = await query
+    let query = salvarComPayload(payload)
+
+    let { error } = await query
+
+    if (
+      error &&
+      error.message?.includes("peso_total")
+    ) {
+      const {
+        peso_total,
+        ...payloadCompatibilidade
+      } = payload
+
+      query = salvarComPayload(
+        payloadCompatibilidade
+      )
+
+      const resposta = await query
+      error = resposta.error
+    }
 
     if (error) {
       alert(error.message)
@@ -124,7 +174,12 @@ export default function Biometria({ user }) {
 
     setTanque(item.tanque || "")
     setQuantidade(item.quantidade || "")
-    setPesoMedio(item.peso_medio || "")
+    setPesoTotal(
+      Number(item.peso_total || 0) ||
+      Number(item.biomassa || 0) * 1000 ||
+      Number(item.quantidade || 0) *
+      Number(item.peso_medio || 0)
+    )
     setDataBiometria(
       item.data_biometria || ""
     )
@@ -140,7 +195,7 @@ export default function Biometria({ user }) {
 
     setTanque("")
     setQuantidade("")
-    setPesoMedio("")
+    setPesoTotal("")
     setDataBiometria("")
   }
 
@@ -219,11 +274,13 @@ export default function Biometria({ user }) {
 
         <div>
           <label className="font-bold">
-            Quantidade
+            Peixes pesados
           </label>
 
           <input
             type="number"
+            min="10"
+            step="1"
             value={quantidade}
             onChange={(e) =>
               setQuantidade(
@@ -233,19 +290,23 @@ export default function Biometria({ user }) {
             className="w-full border p-3 rounded-xl mt-2"
             required
           />
+
+          <p className="mt-1 text-xs text-slate-500">
+            Mínimo de 10 peixes para uma biometria mais precisa.
+          </p>
         </div>
 
         <div>
           <label className="font-bold">
-            Peso Médio (g)
+            Peso total (g)
           </label>
 
           <input
             type="number"
             step="0.01"
-            value={pesoMedio}
+            value={pesoTotal}
             onChange={(e) =>
-              setPesoMedio(
+              setPesoTotal(
                 e.target.value
               )
             }
@@ -256,15 +317,30 @@ export default function Biometria({ user }) {
 
         <div>
           <label className="font-bold">
-            Biomassa
+            Peso médio
           </label>
 
           <input
             type="text"
             readOnly
-            value={`${formatar(
-              biomassa
-            )} kg`}
+            value={formatarPeso(
+              pesoMedio
+            )}
+            className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-blue-700"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">
+            Biomassa da amostra
+          </label>
+
+          <input
+            type="text"
+            readOnly
+            value={formatarPeso(
+              pesoTotal
+            )}
             className="w-full border p-3 rounded-xl mt-2 bg-slate-100 font-bold text-green-700"
           />
         </div>
@@ -339,15 +415,15 @@ export default function Biometria({ user }) {
               </th>
 
               <th className="p-3 text-left">
-                Quantidade
+                Peixes pesados
               </th>
 
               <th className="p-3 text-left">
-                Peso Médio
+                Peso médio
               </th>
 
               <th className="p-3 text-left">
-                Biomassa
+                Biomassa da amostra
               </th>
 
               <th className="p-3 text-left">
@@ -384,17 +460,19 @@ export default function Biometria({ user }) {
                 </td>
 
                 <td className="p-3">
-                  {formatar(
+                  {formatarPeso(
                     item.peso_medio
-                  )}{" "}
-                  g
+                  )}
                 </td>
 
                 <td className="p-3 font-bold text-green-700">
-                  {formatar(
-                    item.biomassa
-                  )}{" "}
-                  kg
+                  {formatarPeso(
+                    Number(
+                      item.peso_total ||
+                      Number(item.biomassa || 0) *
+                      1000
+                    )
+                  )}
                 </td>
 
                 <td className="p-3">

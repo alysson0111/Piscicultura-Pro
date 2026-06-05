@@ -160,7 +160,7 @@ export default function Dashboard({
       const diasAtraso =
         Math.abs(dias)
 
-      return `Sua mensalidade esta atrasada ha ${diasAtraso} dia${diasAtraso > 1 ? "s" : ""}.`
+      return `Sua mensalidade está atrasada há ${diasAtraso} dia${diasAtraso > 1 ? "s" : ""}.`
     }
 
     if (dias === 0) {

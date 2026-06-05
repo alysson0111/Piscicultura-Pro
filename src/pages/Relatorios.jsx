@@ -32,6 +32,16 @@ export default function Relatorios({ user }) {
     })
   }
 
+  function formatarPeso(valorGramas) {
+    const gramas = Number(valorGramas || 0)
+
+    if (Math.abs(gramas) >= 1000) {
+      return `${moeda(gramas / 1000)} kg`
+    }
+
+    return `${moeda(gramas)} g`
+  }
+
   function dataBR(data) {
     if (!data) return "-"
     return new Date(data).toLocaleDateString("pt-BR")
@@ -53,6 +63,11 @@ export default function Relatorios({ user }) {
 
       const { data: biometria } = await supabase
         .from("biometria")
+        .select("*")
+        .eq("user_id", user.id)
+
+      const { data: lotes } = await supabase
+        .from("lotes")
         .select("*")
         .eq("user_id", user.id)
 
@@ -98,39 +113,74 @@ export default function Relatorios({ user }) {
       }
 
       const biometriaFiltrada = filtrarTanque(biometria)
+      const lotesFiltrados = filtrarTanque(lotes)
       const mortalidadeFiltrada = filtrarTanque(mortalidade)
       const custosFiltrados = filtrarCustos(custos)
       const vendasFiltradas = filtrarTanque(vendas)
+
+      const totalMortalidade = mortalidadeFiltrada.reduce(
+        (acc, item) => acc + Number(item.quantidade || 0),
+        0
+      )
+
+      function calcularBiomassaTanque(nomeTanque) {
+        const lotesTanque = lotesFiltrados.filter(
+          (lote) => normalizar(lote.tanque) === normalizar(nomeTanque)
+        )
+
+        const mortalidadeTanque = mortalidadeFiltrada
+          .filter((item) => normalizar(item.tanque) === normalizar(nomeTanque))
+          .reduce((acc, item) => acc + Number(item.quantidade || 0), 0)
+
+        const quantidadePovoada = lotesTanque.reduce(
+          (acc, lote) =>
+            acc + Number(lote.quantidade || lote.quantidade_inicial || 0),
+          0
+        )
+
+        const peixesVivos = Math.max(0, quantidadePovoada - mortalidadeTanque)
+
+        const ultima = biometriaFiltrada
+          .filter((b) => normalizar(b.tanque) === normalizar(nomeTanque))
+          .sort(
+            (a, b) =>
+              new Date(b.data_biometria) - new Date(a.data_biometria)
+          )[0]
+
+        const pesoMedio = Number(ultima?.peso_medio || 0)
+
+        if (pesoMedio > 0) {
+          return {
+            biomassa: (peixesVivos * pesoMedio) / 1000,
+            peixes: peixesVivos,
+          }
+        }
+
+        return {
+          biomassa: lotesTanque.reduce(
+            (acc, lote) => acc + Number(lote.biomassa || 0),
+            0
+          ),
+          peixes: peixesVivos,
+        }
+      }
 
       let biomassa = 0
       let peixes = 0
 
       if (tanqueSelecionado === "todos") {
         nomesTanques.forEach((nomeTanque) => {
-          const ultima = biometriaFiltrada
-            .filter((b) => normalizar(b.tanque) === normalizar(nomeTanque))
-            .sort(
-              (a, b) =>
-                new Date(b.data_biometria) - new Date(a.data_biometria)
-            )[0]
+          const resultadoTanque = calcularBiomassaTanque(nomeTanque)
 
-          biomassa += Number(ultima?.biomassa || 0)
-          peixes += Number(ultima?.quantidade || 0)
+          biomassa += resultadoTanque.biomassa
+          peixes += resultadoTanque.peixes
         })
       } else {
-        const ultima = biometriaFiltrada.sort(
-          (a, b) =>
-            new Date(b.data_biometria) - new Date(a.data_biometria)
-        )[0]
+        const resultadoTanque = calcularBiomassaTanque(tanqueSelecionado)
 
-        biomassa = Number(ultima?.biomassa || 0)
-        peixes = Number(ultima?.quantidade || 0)
+        biomassa = resultadoTanque.biomassa
+        peixes = resultadoTanque.peixes
       }
-
-      const totalMortalidade = mortalidadeFiltrada.reduce(
-        (acc, item) => acc + Number(item.quantidade || 0),
-        0
-      )
 
       const totalCustos = custosFiltrados.reduce(
         (acc, item) => acc + Number(item.valor_total || item.valor || 0),
@@ -427,9 +477,9 @@ export default function Relatorios({ user }) {
             <tr className="border-b bg-slate-100">
               <th className="p-3 text-left">Data</th>
               <th className="p-3 text-left">Tanque</th>
-              <th className="p-3 text-left">Quantidade</th>
-              <th className="p-3 text-left">Peso Médio</th>
-              <th className="p-3 text-left">Biomassa</th>
+              <th className="p-3 text-left">Peixes pesados</th>
+              <th className="p-3 text-left">Peso médio</th>
+              <th className="p-3 text-left">Biomassa da amostra</th>
             </tr>
           </thead>
 
@@ -440,10 +490,15 @@ export default function Relatorios({ user }) {
                 <td className="p-3">{item.tanque}</td>
                 <td className="p-3">{item.quantidade}</td>
                 <td className="p-3">
-                  {Number(item.peso_medio || 0).toFixed(2)} g
+                  {formatarPeso(item.peso_medio)}
                 </td>
                 <td className="p-3">
-                  {Number(item.biomassa || 0).toFixed(2)} kg
+                  {formatarPeso(
+                    Number(
+                      item.peso_total ||
+                      Number(item.biomassa || 0) * 1000
+                    )
+                  )}
                 </td>
               </tr>
             ))}

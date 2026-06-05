@@ -11,6 +11,57 @@ export default function PrevisaoAbate({
   const PESO_ABATE = 900
   const MS_DIA = 1000 * 60 * 60 * 24
 
+  function inicioDoDia(data = new Date()) {
+    return new Date(
+      data.getFullYear(),
+      data.getMonth(),
+      data.getDate()
+    )
+  }
+
+  function dataLocal(data) {
+    if (!data) return null
+
+    return inicioDoDia(
+      new Date(`${data}T00:00:00`)
+    )
+  }
+
+  function calcularDiasCultivo(dataPovoamento) {
+    const inicio = dataLocal(dataPovoamento)
+
+    if (!inicio) return 0
+
+    return Math.max(
+      0,
+      Math.floor(
+        (inicioDoDia() - inicio) / MS_DIA
+      ) + 1
+    )
+  }
+
+  function calcularDiasRestantes(dataRetirada) {
+    if (!dataRetirada) return 0
+
+    const hoje = inicioDoDia()
+    const retirada = inicioDoDia(
+      new Date(`${dataRetirada}T00:00:00`)
+    )
+
+    return Math.max(
+      0,
+      Math.ceil((retirada - hoje) / MS_DIA)
+    )
+  }
+
+  function dataBR(data) {
+    if (!data || data === "-") return "-"
+
+    return new Date(
+      `${data}T00:00:00`
+    ).toLocaleDateString("pt-BR")
+  }
+
   function calcularBiomassaPorData(
     item,
     dataRetirada
@@ -34,26 +85,8 @@ export default function PrevisaoAbate({
       }
     }
 
-    const dataBase =
-      new Date(
-        item.data_base_previsao ||
-        item.data_povoamento ||
-        new Date()
-      )
-
-    const dataFinal =
-      new Date(dataRetirada)
-
     const dias =
-      Math.max(
-        0,
-        Math.floor(
-          (
-            dataFinal -
-            dataBase
-          ) / MS_DIA
-        )
-      )
+      calcularDiasRestantes(dataRetirada)
 
     const pesoBase =
       Number(
@@ -102,6 +135,12 @@ export default function PrevisaoAbate({
           ...item,
           data_prevista_retirada:
             dataRetirada,
+          dias_restantes:
+            calcularDiasRestantes(
+              dataRetirada
+            ),
+          previsao:
+            dataRetirada || item.previsao,
           ...calculo,
         }
       })
@@ -167,6 +206,17 @@ export default function PrevisaoAbate({
           user.id
         )
 
+      const {
+        data: mortalidades,
+        error: erroMortalidade,
+      } = await supabase
+        .from("mortalidade")
+        .select("*")
+        .eq(
+          "user_id",
+          user.id
+        )
+
       if (erroLotes) {
         console.log(erroLotes)
         return
@@ -174,6 +224,11 @@ export default function PrevisaoAbate({
 
       if (erroBiometria) {
         console.log(erroBiometria)
+        return
+      }
+
+      if (erroMortalidade) {
+        console.log(erroMortalidade)
         return
       }
 
@@ -192,11 +247,33 @@ export default function PrevisaoAbate({
 
       const resultado =
         lotesValidos.map((lote) => {
-          const quantidadeLote =
+          const quantidadePovoada =
             Number(
               lote.quantidade ||
               lote.quantidade_inicial ||
               0
+            )
+
+          const mortalidadeTanque =
+            (mortalidades || [])
+              .filter(
+                (item) =>
+                  item.tanque === lote.tanque
+              )
+              .reduce(
+                (acc, item) =>
+                  acc +
+                  Number(
+                    item.quantidade || 0
+                  ),
+                0
+              )
+
+          const quantidadeLote =
+            Math.max(
+              0,
+              quantidadePovoada -
+              mortalidadeTanque
             )
 
           const dataRetirada =
@@ -242,8 +319,12 @@ export default function PrevisaoAbate({
                 dataRetirada,
               peso_futuro:
                 calculo.peso_futuro,
-              dias_restantes: 0,
-              previsao: "-",
+              dias_restantes:
+                calcularDiasRestantes(
+                  dataRetirada
+                ),
+              previsao:
+                dataRetirada || "-",
               biomassa_futura:
                 calculo.biomassa_futura,
             }
@@ -252,24 +333,11 @@ export default function PrevisaoAbate({
           const ultima =
             biometriaTanque[0]
 
-          const dataInicial =
-            new Date(
-              lote.data_povoamento
-            )
-
-          const dataAtual =
-            new Date(
-              ultima.data_biometria
-            )
-
           const diasCultivo =
             Math.max(
               1,
-              Math.floor(
-                (
-                  dataAtual -
-                  dataInicial
-                ) / MS_DIA
+              calcularDiasCultivo(
+                lote.data_povoamento
               )
             )
 
@@ -292,14 +360,9 @@ export default function PrevisaoAbate({
               : 0
 
           const diasRestantes =
-            crescimento > 0
-              ? Math.ceil(
-                  (
-                    PESO_ABATE -
-                    pesoAtual
-                  ) / crescimento
-                )
-              : 0
+            calcularDiasRestantes(
+              dataRetirada
+            )
 
           const previsao =
             new Date()
@@ -466,7 +529,10 @@ export default function PrevisaoAbate({
                 </p>
 
                 <h3 className="text-xl font-bold text-purple-700">
-                  {item.data_prevista_retirada || item.previsao}
+                  {dataBR(
+                    item.data_prevista_retirada ||
+                    item.previsao
+                  )}
                 </h3>
               </div>
 

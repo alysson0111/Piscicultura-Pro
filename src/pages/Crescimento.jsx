@@ -13,6 +13,50 @@ export default function Crescimento({
   const [dados, setDados] =
     useState([])
 
+  const MS_DIA =
+    1000 * 60 * 60 * 24
+
+  function inicioDoDia(data = new Date()) {
+    return new Date(
+      data.getFullYear(),
+      data.getMonth(),
+      data.getDate()
+    )
+  }
+
+  function dataLocal(data) {
+    if (!data) return null
+
+    return inicioDoDia(
+      new Date(`${data}T00:00:00`)
+    )
+  }
+
+  function calcularDiasCultivo(dataPovoamento) {
+    const inicio = dataLocal(dataPovoamento)
+
+    if (!inicio) return 0
+
+    return Math.max(
+      0,
+      Math.floor(
+        (inicioDoDia() - inicio) / MS_DIA
+      ) + 1
+    )
+  }
+
+  function dataBR(data) {
+    if (!data) return "-"
+
+    if (data instanceof Date) {
+      return data.toLocaleDateString("pt-BR")
+    }
+
+    return new Date(
+      `${data}T00:00:00`
+    ).toLocaleDateString("pt-BR")
+  }
+
   async function carregarDados() {
 
     try {
@@ -119,37 +163,19 @@ export default function Crescimento({
 
                 crescimento: 0,
 
-                dias: 0,
+                dias: calcularDiasCultivo(
+                  lote.data_povoamento
+                ),
 
               }
             }
-
-            // DATAS
-            const inicio =
-              new Date(
-                lote.data_povoamento
-              )
-
-            const atual =
-              new Date(
-                biometria.data_biometria
-              )
 
             // DIAS
             const dias =
               Math.max(
                 1,
-                Math.floor(
-                  (
-                    atual -
-                    inicio
-                  ) /
-                  (
-                    1000 *
-                    60 *
-                    60 *
-                    24
-                  )
+                calcularDiasCultivo(
+                  lote.data_povoamento
                 )
               )
 
@@ -234,6 +260,20 @@ export default function Crescimento({
               Tanque:
               {" "}
               {item.tanque || "-"}
+            </p>
+
+            <p className="text-sm text-gray-500 mt-1">
+              Povoamento puxado do lote:
+              {" "}
+              <strong>
+                {dataBR(item.data_povoamento)}
+              </strong>
+              {" "}
+              | Data atual usada:
+              {" "}
+              <strong>
+                {dataBR(new Date())}
+              </strong>
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">

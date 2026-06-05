@@ -35,10 +35,16 @@ export default function RcaTanques({ user }) {
         .select("*")
         .eq("user_id", user.id)
 
+      const { data: mortalidades } = await supabase
+        .from("mortalidade")
+        .select("*")
+        .eq("user_id", user.id)
+
       const listaTanques = tanquesData || []
       const listaBiometrias = biometrias || []
       const listaCustos = custos || []
       const listaLotes = lotes || []
+      const listaMortalidades = mortalidades || []
 
       setTanques(listaTanques)
 
@@ -54,18 +60,36 @@ export default function RcaTanques({ user }) {
       const resultado = tanquesFiltrados.map((tanque) => {
         const nomeTanque = String(tanque.nome || "").trim().toLowerCase()
 
-        const loteTanque = listaLotes
-          .filter(
-            (l) =>
-              String(l.tanque || "").trim().toLowerCase() === nomeTanque
-          )
-          .sort(
-            (a, b) =>
-              new Date(b.data_povoamento) -
-              new Date(a.data_povoamento)
-          )[0]
+        const lotesTanque = listaLotes.filter(
+          (l) =>
+            String(l.tanque || "").trim().toLowerCase() === nomeTanque
+        )
 
-        const biomassaInicial = Number(loteTanque?.biomassa || 0)
+        const quantidadePovoada = lotesTanque.reduce(
+          (acc, lote) =>
+            acc + Number(lote.quantidade || lote.quantidade_inicial || 0),
+          0
+        )
+
+        const mortalidadeTanque = listaMortalidades
+          .filter(
+            (m) =>
+              String(m.tanque || "").trim().toLowerCase() === nomeTanque
+          )
+          .reduce(
+            (acc, item) => acc + Number(item.quantidade || 0),
+            0
+          )
+
+        const peixesVivos = Math.max(
+          0,
+          quantidadePovoada - mortalidadeTanque
+        )
+
+        const biomassaInicial = lotesTanque.reduce(
+          (acc, lote) => acc + Number(lote.biomassa || 0),
+          0
+        )
 
         const ultimaBiometria = listaBiometrias
           .filter(
@@ -78,7 +102,12 @@ export default function RcaTanques({ user }) {
               new Date(a.data_biometria)
           )[0]
 
-        const biomassaAtual = Number(ultimaBiometria?.biomassa || 0)
+        const pesoMedioAtual = Number(ultimaBiometria?.peso_medio || 0)
+
+        const biomassaAtual =
+          pesoMedioAtual > 0
+            ? (peixesVivos * pesoMedioAtual) / 1000
+            : 0
 
         const ganhoBiomassa =
           biomassaAtual - biomassaInicial > 0
