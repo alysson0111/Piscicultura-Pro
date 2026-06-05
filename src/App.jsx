@@ -20,6 +20,29 @@ function adicionarDias(data, dias) {
   return resultado
 }
 
+function criarDataLocal(valor) {
+  if (!valor) return null
+
+  if (
+    typeof valor === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(valor)
+  ) {
+    const [
+      ano,
+      mes,
+      dia,
+    ] = valor.split("-").map(Number)
+
+    return new Date(
+      ano,
+      mes - 1,
+      dia
+    )
+  }
+
+  return new Date(valor)
+}
+
 function planoAtual(perfil, usuario) {
   if (
     perfil?.tipo_usuario === "root" ||
@@ -152,6 +175,8 @@ export default function App() {
             inicioTeste,
             DIAS_TESTE
           ).toISOString(),
+        data_ativacao_pro:
+          null,
         valor_mensal:
           0,
         desconto_percentual:
@@ -172,6 +197,26 @@ export default function App() {
           .single()
 
       if (
+        respostaCriacao.error?.message?.includes(
+          "data_ativacao_pro"
+        )
+      ) {
+        const {
+          data_ativacao_pro,
+          ...perfilSemAtivacao
+        } = novoPerfil
+
+        respostaCriacao =
+          await supabase
+            .from("profiles")
+            .insert([
+              perfilSemAtivacao,
+            ])
+            .select()
+            .single()
+      }
+
+      if (
         respostaCriacao.error &&
         (
           respostaCriacao.error.message?.includes("plano") ||
@@ -183,6 +228,7 @@ export default function App() {
           plano,
           teste_inicia_em,
           teste_termina_em,
+          data_ativacao_pro,
           ...perfilCompatibilidade
         } = novoPerfil
 
@@ -216,7 +262,9 @@ export default function App() {
 
     const vencimento =
       perfilAtual.data_vencimento
-        ? new Date(perfilAtual.data_vencimento)
+        ? criarDataLocal(
+            perfilAtual.data_vencimento
+          )
         : null
 
     if (vencimento) {

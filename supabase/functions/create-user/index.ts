@@ -115,6 +115,21 @@ Deno.serve(async (req) => {
           )
         : null
 
+    const ativacaoPro =
+      plano === "pro"
+        ? new Date(
+            body.data_ativacao_pro ||
+            new Date()
+          )
+        : null
+
+    const vencimentoPro =
+      ativacaoPro
+        ? adicionarUmMes(
+            ativacaoPro
+          )
+        : null
+
     const valorMensal =
       Number(body.valor_mensal || 0)
 
@@ -129,7 +144,12 @@ Deno.serve(async (req) => {
       ) / 100
 
     const dataVencimento =
-      body.data_vencimento || null
+      body.data_vencimento ||
+      (
+        vencimentoPro
+          ? dataLocal(vencimentoPro)
+          : null
+      )
 
     if (!email || senha.length < 6) {
       return json(
@@ -152,6 +172,8 @@ Deno.serve(async (req) => {
         plano,
         teste_inicia_em:
           inicioTeste?.toISOString() || null,
+        data_ativacao_pro:
+          ativacaoPro?.toISOString() || null,
       },
     })
 
@@ -180,6 +202,8 @@ Deno.serve(async (req) => {
           inicioTeste?.toISOString() || null,
         teste_termina_em:
           terminoTeste?.toISOString() || null,
+        data_ativacao_pro:
+          ativacaoPro?.toISOString() || null,
         valor_mensal: valorMensal,
         desconto_percentual: descontoPercentual,
         valor_final: valorFinal,
@@ -225,4 +249,32 @@ function json(
       },
     }
   )
+}
+
+function adicionarUmMes(data: Date) {
+  const resultado = new Date(data)
+  const dia = resultado.getUTCDate()
+
+  resultado.setUTCDate(1)
+  resultado.setUTCMonth(
+    resultado.getUTCMonth() + 1
+  )
+
+  const ultimoDiaDoMes = new Date(
+    Date.UTC(
+      resultado.getUTCFullYear(),
+      resultado.getUTCMonth() + 1,
+      0
+    )
+  ).getUTCDate()
+
+  resultado.setUTCDate(
+    Math.min(dia, ultimoDiaDoMes)
+  )
+
+  return resultado
+}
+
+function dataLocal(data: Date) {
+  return data.toISOString().slice(0, 10)
 }

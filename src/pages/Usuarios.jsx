@@ -31,9 +31,6 @@ export default function Usuarios({
   const [descontoPercentual, setDescontoPercentual] =
     useState("")
 
-  const [dataVencimento, setDataVencimento] =
-    useState("")
-
   const [loading, setLoading] =
     useState(false)
 
@@ -59,6 +56,49 @@ export default function Usuarios({
         mensal *
         percentual
       ) / 100
+  }
+
+  function adicionarUmMes(data) {
+    const resultado = new Date(data)
+    const dia = resultado.getDate()
+
+    resultado.setDate(1)
+    resultado.setMonth(resultado.getMonth() + 1)
+
+    const ultimoDiaDoMes = new Date(
+      resultado.getFullYear(),
+      resultado.getMonth() + 1,
+      0
+    ).getDate()
+
+    resultado.setDate(
+      Math.min(dia, ultimoDiaDoMes)
+    )
+
+    return resultado
+  }
+
+  function dataParaCampo(data) {
+    if (!data) return ""
+
+    const valor = new Date(data)
+    const ano = valor.getFullYear()
+    const mes = String(
+      valor.getMonth() + 1
+    ).padStart(2, "0")
+    const dia = String(
+      valor.getDate()
+    ).padStart(2, "0")
+
+    return `${ano}-${mes}-${dia}`
+  }
+
+  function formatarData(data) {
+    if (!data) return "-"
+
+    return new Date(data).toLocaleDateString(
+      "pt-BR"
+    )
   }
 
   async function carregarUsuarios() {
@@ -87,6 +127,20 @@ export default function Usuarios({
     e.preventDefault()
     setLoading(true)
 
+    const ativacaoPro =
+      plano === "pro"
+        ? new Date()
+        : null
+
+    const vencimentoPro =
+      ativacaoPro
+        ? dataParaCampo(
+            adicionarUmMes(
+              ativacaoPro
+            )
+          )
+        : null
+
     const {
       data,
       error,
@@ -107,7 +161,9 @@ export default function Usuarios({
           desconto_percentual:
             Number(descontoPercentual || 0),
           data_vencimento:
-            dataVencimento || null,
+            vencimentoPro,
+          data_ativacao_pro:
+            ativacaoPro?.toISOString() || null,
         },
       }
     )
@@ -135,8 +191,6 @@ export default function Usuarios({
     setPlano("pro")
     setValorMensal("")
     setDescontoPercentual("")
-    setDataVencimento("")
-
     await carregarUsuarios()
     alert("Usuário cadastrado!")
   }
@@ -158,6 +212,39 @@ export default function Usuarios({
     }
 
     carregarUsuarios()
+  }
+
+  async function atualizarPlano(
+    item,
+    novoPlano
+  ) {
+    const campos = {
+      plano: novoPlano,
+    }
+
+    if (novoPlano === "pro") {
+      const ativacao =
+        item.plano === "pro" &&
+        item.data_ativacao_pro
+          ? new Date(item.data_ativacao_pro)
+          : new Date()
+
+      campos.data_ativacao_pro =
+        ativacao.toISOString()
+      campos.data_vencimento =
+        dataParaCampo(
+          adicionarUmMes(ativacao)
+        )
+      campos.status_pagamento = "ativo"
+    } else {
+      campos.data_ativacao_pro = null
+      campos.data_vencimento = null
+    }
+
+    await atualizarPerfil(
+      item.id,
+      campos
+    )
   }
 
   useEffect(() => {
@@ -327,16 +414,25 @@ export default function Usuarios({
 
         <div>
           <label className="font-bold">
-            Vencimento
+            Vencimento do Plano Pro
           </label>
           <input
             type="date"
-            value={dataVencimento}
-            onChange={(e) =>
-              setDataVencimento(e.target.value)
+            value={
+              plano === "pro"
+                ? dataParaCampo(
+                    adicionarUmMes(
+                      new Date()
+                    )
+                  )
+                : ""
             }
-            className="w-full border p-3 rounded-xl mt-2"
+            readOnly
+            className="w-full border p-3 rounded-xl mt-2 bg-slate-100"
           />
+          <p className="mt-1 text-sm text-slate-500">
+            Calculado para o mesmo dia do mês seguinte à ativação.
+          </p>
         </div>
 
         <div>
@@ -384,6 +480,8 @@ export default function Usuarios({
               <th className="p-3 text-left">Mensalidade</th>
               <th className="p-3 text-left">Desconto</th>
               <th className="p-3 text-left">Valor final</th>
+              <th className="p-3 text-left">Cadastro</th>
+              <th className="p-3 text-left">Ativação Pro</th>
               <th className="p-3 text-left">Vencimento</th>
             </tr>
           </thead>
@@ -450,12 +548,9 @@ export default function Usuarios({
                       )
                     }
                     onChange={(e) =>
-                      atualizarPerfil(
-                        item.id,
-                        {
-                          plano:
-                            e.target.value,
-                        }
+                      atualizarPlano(
+                        item,
+                        e.target.value
                       )
                     }
                     className="border p-2 rounded-lg"
@@ -525,6 +620,16 @@ export default function Usuarios({
                       item.valor_mensal,
                       item.desconto_percentual
                     )
+                  )}
+                </td>
+                <td className="p-3 whitespace-nowrap">
+                  {formatarData(
+                    item.created_at
+                  )}
+                </td>
+                <td className="p-3 whitespace-nowrap">
+                  {formatarData(
+                    item.data_ativacao_pro
                   )}
                 </td>
                 <td className="p-3">
