@@ -43,6 +43,11 @@ export default function Login({
     loading ||
     recuperandoSenha
 
+  const emailValido =
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email.trim()
+    )
+
   const emailInvalido =
     !email.trim() ||
     loading ||
@@ -84,6 +89,20 @@ export default function Login({
   }
 
   async function cadastrar() {
+    if (!emailValido) {
+      alert(
+        "Informe um e-mail válido para criar a conta."
+      )
+      return
+    }
+
+    if (senha.length < 6) {
+      alert(
+        "A senha precisa ter pelo menos 6 caracteres."
+      )
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -91,7 +110,7 @@ export default function Login({
         data,
         error,
       } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password: senha,
         options: {
           data: {
@@ -440,11 +459,16 @@ export default function Login({
               <button
                 type="button"
                 onClick={cadastrar}
-                disabled={formularioInvalido}
+                disabled={
+                  loading ||
+                  recuperandoSenha
+                }
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
               >
                 <UserPlus size={18} />
-                Criar conta
+                {loading
+                  ? "Criando..."
+                  : "Criar conta"}
               </button>
             </div>
 
