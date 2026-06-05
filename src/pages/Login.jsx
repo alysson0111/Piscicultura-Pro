@@ -93,6 +93,13 @@ export default function Login({
       } = await supabase.auth.signUp({
         email,
         password: senha,
+        options: {
+          data: {
+            plano: "teste",
+            teste_inicia_em:
+              new Date().toISOString(),
+          },
+        },
       })
 
       if (error) {

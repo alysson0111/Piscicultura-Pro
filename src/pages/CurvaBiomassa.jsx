@@ -160,6 +160,9 @@ export default function CurvaBiomassa({
     }
   }, [user, tanqueSelecionado])
 
+  const dadosHistorico =
+    [...dados].reverse()
+
   return (
     <div className="space-y-6">
 
@@ -310,7 +313,7 @@ export default function CurvaBiomassa({
           </thead>
 
           <tbody>
-            {dados.map(
+            {dadosHistorico.map(
               (item, index) => (
                 <tr
                   key={index}

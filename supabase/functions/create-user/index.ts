@@ -94,6 +94,27 @@ Deno.serve(async (req) => {
     const statusPagamento =
       body.status_pagamento || "ativo"
 
+    const plano =
+      body.plano ||
+      (
+        tipoUsuario === "cliente"
+          ? "pro"
+          : "isento"
+      )
+
+    const inicioTeste =
+      plano === "teste"
+        ? new Date()
+        : null
+
+    const terminoTeste =
+      inicioTeste
+        ? new Date(
+            inicioTeste.getTime() +
+            30 * 24 * 60 * 60 * 1000
+          )
+        : null
+
     const valorMensal =
       Number(body.valor_mensal || 0)
 
@@ -128,6 +149,9 @@ Deno.serve(async (req) => {
       email_confirm: true,
       user_metadata: {
         name: nome,
+        plano,
+        teste_inicia_em:
+          inicioTeste?.toISOString() || null,
       },
     })
 
@@ -151,6 +175,11 @@ Deno.serve(async (req) => {
         tipo_usuario: tipoUsuario,
         status: "ativo",
         status_pagamento: statusPagamento,
+        plano,
+        teste_inicia_em:
+          inicioTeste?.toISOString() || null,
+        teste_termina_em:
+          terminoTeste?.toISOString() || null,
         valor_mensal: valorMensal,
         desconto_percentual: descontoPercentual,
         valor_final: valorFinal,

@@ -22,6 +22,9 @@ export default function Usuarios({
   const [statusPagamento, setStatusPagamento] =
     useState("ativo")
 
+  const [plano, setPlano] =
+    useState("pro")
+
   const [valorMensal, setValorMensal] =
     useState("")
 
@@ -98,6 +101,7 @@ export default function Usuarios({
             tipoUsuario,
           status_pagamento:
             statusPagamento,
+          plano,
           valor_mensal:
             Number(valorMensal || 0),
           desconto_percentual:
@@ -128,6 +132,7 @@ export default function Usuarios({
     setSenha("")
     setTipoUsuario("cliente")
     setStatusPagamento("ativo")
+    setPlano("pro")
     setValorMensal("")
     setDescontoPercentual("")
     setDataVencimento("")
@@ -267,6 +272,29 @@ export default function Usuarios({
 
         <div>
           <label className="font-bold">
+            Plano
+          </label>
+          <select
+            value={plano}
+            onChange={(e) =>
+              setPlano(e.target.value)
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+          >
+            <option value="teste">
+              Teste gratuito
+            </option>
+            <option value="pro">
+              Plano Pro
+            </option>
+            <option value="isento">
+              Isento
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label className="font-bold">
             Valor mensal
           </label>
           <input
@@ -351,6 +379,7 @@ export default function Usuarios({
               <th className="p-3 text-left">E-mail</th>
               <th className="p-3 text-left">Tipo</th>
               <th className="p-3 text-left">Status</th>
+              <th className="p-3 text-left">Plano</th>
               <th className="p-3 text-left">Pagamento</th>
               <th className="p-3 text-left">Mensalidade</th>
               <th className="p-3 text-left">Desconto</th>
@@ -406,6 +435,34 @@ export default function Usuarios({
                   >
                     <option value="ativo">ativo</option>
                     <option value="bloqueado">bloqueado</option>
+                  </select>
+                </td>
+                <td className="p-3">
+                  <select
+                    value={
+                      item.plano ||
+                      (
+                        item.tipo_usuario === "root" ||
+                        item.tipo_usuario === "parceiro" ||
+                        item.status_pagamento === "isento"
+                          ? "isento"
+                          : "pro"
+                      )
+                    }
+                    onChange={(e) =>
+                      atualizarPerfil(
+                        item.id,
+                        {
+                          plano:
+                            e.target.value,
+                        }
+                      )
+                    }
+                    className="border p-2 rounded-lg"
+                  >
+                    <option value="teste">teste</option>
+                    <option value="pro">Pro</option>
+                    <option value="isento">isento</option>
                   </select>
                 </td>
                 <td className="p-3">

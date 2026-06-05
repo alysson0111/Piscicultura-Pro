@@ -1,9 +1,57 @@
 import { useEffect, useState } from "react"
+import {
+  Crown,
+  MessageCircle,
+  XCircle,
+} from "lucide-react"
 
 import { supabase } from "./lib/supabase"
 
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
+
+const DIAS_TESTE = 30
+const WHATSAPP_PRO =
+  "https://wa.me/5579998485516?text=Olá! Meu período de teste do Piscicultura PRO terminou e desejo ativar o Plano Pro."
+
+function adicionarDias(data, dias) {
+  const resultado = new Date(data)
+  resultado.setDate(resultado.getDate() + dias)
+  return resultado
+}
+
+function planoAtual(perfil, usuario) {
+  if (
+    perfil?.tipo_usuario === "root" ||
+    perfil?.tipo_usuario === "parceiro" ||
+    perfil?.status_pagamento === "isento"
+  ) {
+    return "isento"
+  }
+
+  if (perfil?.plano) {
+    return perfil.plano
+  }
+
+  if (usuario?.user_metadata?.plano === "teste") {
+    return "teste"
+  }
+
+  return "pro"
+}
+
+function terminoDoTeste(perfil, usuario) {
+  if (perfil?.teste_termina_em) {
+    return new Date(perfil.teste_termina_em)
+  }
+
+  const inicio =
+    perfil?.teste_inicia_em ||
+    usuario?.created_at ||
+    new Date()
+
+  return adicionarDias(inicio, DIAS_TESTE)
+}
 
 export default function App() {
   const [user, setUser] =
@@ -14,6 +62,12 @@ export default function App() {
 
   const [bloqueio, setBloqueio] =
     useState("")
+
+  const [testeExpirado, setTesteExpirado] =
+    useState(false)
+
+  const [telaEncerrada, setTelaEncerrada] =
+    useState(false)
 
   const [modoRedefinirSenha, setModoRedefinirSenha] =
     useState(false)
@@ -43,6 +97,7 @@ export default function App() {
     if (!usuario) {
       setPerfil(null)
       setBloqueio("")
+      setTesteExpirado(false)
       return
     }
 
@@ -62,10 +117,19 @@ export default function App() {
       console.log(error)
       setPerfil(null)
       setBloqueio("")
+      setTesteExpirado(false)
       return
     }
 
-    if (!data) {
+    let perfilAtual = data
+
+    if (!perfilAtual) {
+      const inicioTeste =
+        new Date(
+          usuario.created_at ||
+          new Date()
+        )
+
       const novoPerfil = {
         user_id:
           usuario.id,
@@ -79,6 +143,15 @@ export default function App() {
           "ativo",
         status_pagamento:
           "ativo",
+        plano:
+          "teste",
+        teste_inicia_em:
+          inicioTeste.toISOString(),
+        teste_termina_em:
+          adicionarDias(
+            inicioTeste,
+            DIAS_TESTE
+          ).toISOString(),
         valor_mensal:
           0,
         desconto_percentual:
@@ -89,50 +162,77 @@ export default function App() {
           null,
       }
 
-      const {
-        data: perfilCriado,
-        error: erroCriar,
-      } = await supabase
-        .from("profiles")
-        .insert([
-          novoPerfil,
-        ])
-        .select()
-        .single()
+      let respostaCriacao =
+        await supabase
+          .from("profiles")
+          .insert([
+            novoPerfil,
+          ])
+          .select()
+          .single()
 
-      if (erroCriar) {
-        console.log(erroCriar)
+      if (
+        respostaCriacao.error &&
+        (
+          respostaCriacao.error.message?.includes("plano") ||
+          respostaCriacao.error.message?.includes("teste_inicia_em") ||
+          respostaCriacao.error.message?.includes("teste_termina_em")
+        )
+      ) {
+        const {
+          plano,
+          teste_inicia_em,
+          teste_termina_em,
+          ...perfilCompatibilidade
+        } = novoPerfil
+
+        respostaCriacao =
+          await supabase
+            .from("profiles")
+            .insert([
+              perfilCompatibilidade,
+            ])
+            .select()
+            .single()
+      }
+
+      if (respostaCriacao.error) {
+        console.log(respostaCriacao.error)
         setPerfil(null)
         setBloqueio("")
+        setTesteExpirado(false)
         return
       }
 
-      setPerfil(perfilCriado)
-      setBloqueio("")
-      return
+      perfilAtual =
+        respostaCriacao.data
     }
 
-    setPerfil(data)
+    setPerfil(perfilAtual)
+    setTesteExpirado(false)
 
     const hoje =
       new Date()
 
-    hoje.setHours(0, 0, 0, 0)
-
     const vencimento =
-      data.data_vencimento
-        ? new Date(data.data_vencimento)
+      perfilAtual.data_vencimento
+        ? new Date(perfilAtual.data_vencimento)
         : null
 
     if (vencimento) {
       vencimento.setHours(0, 0, 0, 0)
     }
 
+    const hojePagamento =
+      new Date(hoje)
+
+    hojePagamento.setHours(0, 0, 0, 0)
+
     const diasAtraso =
       vencimento
         ? Math.floor(
             (
-              hoje -
+              hojePagamento -
               vencimento
             ) /
             (
@@ -144,19 +244,39 @@ export default function App() {
           )
         : 0
 
-    if (data.status === "bloqueado") {
+    if (perfilAtual.status === "bloqueado") {
       setBloqueio(
         "Usuário bloqueado. Entre em contato com o suporte."
       )
       return
     }
 
+    const plano =
+      planoAtual(
+        perfilAtual,
+        usuario
+      )
+
     if (
-      data.tipo_usuario !== "root" &&
-      data.status_pagamento !== "isento" &&
+      plano === "teste" &&
+      hoje >=
+        terminoDoTeste(
+          perfilAtual,
+          usuario
+        )
+    ) {
+      setBloqueio("")
+      setTesteExpirado(true)
+      return
+    }
+
+    if (
+      plano === "pro" &&
+      perfilAtual.tipo_usuario !== "root" &&
+      perfilAtual.status_pagamento !== "isento" &&
       (
         (
-          data.status_pagamento === "vencido" &&
+          perfilAtual.status_pagamento === "vencido" &&
           !vencimento
         ) ||
         (
@@ -172,6 +292,7 @@ export default function App() {
     }
 
     setBloqueio("")
+    setTesteExpirado(false)
   }
 
   useEffect(() => {
@@ -227,6 +348,26 @@ export default function App() {
     setUser(null)
     setPerfil(null)
     setBloqueio("")
+    setTesteExpirado(false)
+  }
+
+  function ativarPlanoPro() {
+    window.location.href =
+      encodeURI(WHATSAPP_PRO)
+  }
+
+  async function recusarPlanoPro() {
+    await supabase.auth.signOut()
+
+    setUser(null)
+    setPerfil(null)
+    setBloqueio("")
+    setTesteExpirado(false)
+    setTelaEncerrada(true)
+
+    window.setTimeout(() => {
+      window.close()
+    }, 300)
   }
 
   if (loading) {
@@ -239,6 +380,35 @@ export default function App() {
     )
   }
 
+  if (telaEncerrada) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <XCircle
+            className="mx-auto text-slate-400"
+            size={48}
+          />
+
+          <h1 className="mt-5 text-2xl font-bold text-slate-950">
+            Que pena!
+          </h1>
+
+          <p className="mt-3 leading-7 text-slate-600">
+            Quem sabe em outra oportunidade. Desejamos sucesso!
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setTelaEncerrada(false)}
+            className="mt-6 min-h-11 w-full rounded-lg bg-slate-900 px-4 py-3 font-bold text-white hover:bg-slate-700"
+          >
+            Voltar ao login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
       <Login
@@ -246,6 +416,51 @@ export default function App() {
         modoRedefinirSenha={modoRedefinirSenha}
         onSenhaRedefinida={() => setModoRedefinirSenha(false)}
       />
+    )
+  }
+
+  if (
+    testeExpirado &&
+    !modoRedefinirSenha
+  ) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
+        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xl">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-teal-600 text-white">
+            <Crown
+              size={30}
+              strokeWidth={2.3}
+            />
+          </div>
+
+          <h1 className="mt-5 text-2xl font-bold text-slate-950">
+            Seu período de teste terminou
+          </h1>
+
+          <p className="mt-3 leading-7 text-slate-600">
+            Os 30 dias gratuitos do Piscicultura PRO foram concluídos. Deseja ativar o Plano Pro para continuar utilizando o sistema?
+          </p>
+
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={ativarPlanoPro}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-700"
+            >
+              <MessageCircle size={19} />
+              Sim, ativar Pro
+            </button>
+
+            <button
+              type="button"
+              onClick={recusarPlanoPro}
+              className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 py-3 font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Não, obrigado
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
