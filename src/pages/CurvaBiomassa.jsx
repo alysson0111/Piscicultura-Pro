@@ -32,6 +32,12 @@ export default function CurvaBiomassa({
     setTanqueSelecionado,
   ] = useState("todos")
 
+  function normalizar(texto) {
+    return String(texto || "")
+      .trim()
+      .toLowerCase()
+  }
+
   async function carregarDados() {
 
     try {
@@ -74,6 +80,38 @@ export default function CurvaBiomassa({
         return
       }
 
+      const {
+        data: lotes,
+        error: erroLotes,
+      } = await supabase
+        .from("lotes")
+        .select("*")
+        .eq(
+          "user_id",
+          user.id
+        )
+
+      if (erroLotes) {
+        console.log(erroLotes)
+        return
+      }
+
+      const {
+        data: mortalidades,
+        error: erroMortalidades,
+      } = await supabase
+        .from("mortalidade")
+        .select("*")
+        .eq(
+          "user_id",
+          user.id
+        )
+
+      if (erroMortalidades) {
+        console.log(erroMortalidades)
+        return
+      }
+
       const nomesTanques =
         dadosTanques?.map(
           (item) => item.nome
@@ -83,6 +121,50 @@ export default function CurvaBiomassa({
 
       const lista =
         biometrias || []
+
+      function quantidadePeixesTanque(
+        nomeTanque
+      ) {
+        const quantidadePovoada =
+          (lotes || [])
+            .filter(
+              (item) =>
+                normalizar(item.tanque) ===
+                normalizar(nomeTanque)
+            )
+            .reduce(
+              (total, item) =>
+                total +
+                Number(
+                  item.quantidade ||
+                  item.quantidade_inicial ||
+                  0
+                ),
+              0
+            )
+
+        const totalMortalidade =
+          (mortalidades || [])
+            .filter(
+              (item) =>
+                normalizar(item.tanque) ===
+                normalizar(nomeTanque)
+            )
+            .reduce(
+              (total, item) =>
+                total +
+                Number(
+                  item.quantidade || 0
+                ),
+              0
+            )
+
+        return Math.max(
+          0,
+          quantidadePovoada -
+          totalMortalidade
+        )
+      }
 
       const filtrado =
         tanqueSelecionado === "todos"
@@ -101,20 +183,16 @@ export default function CurvaBiomassa({
               item.peso_medio || 0
             )
 
-          const quantidade =
-            Number(
-              item.quantidade || 0
+          const quantidadePeixes =
+            quantidadePeixesTanque(
+              item.tanque
             )
 
           const biomassa =
-            quantidade > 0
-              ? (
-                  quantidade *
-                  peso
-                ) / 1000
-              : Number(
-                  item.biomassa || 0
-                )
+            (
+              quantidadePeixes *
+              peso
+            ) / 1000
 
           const anterior =
             filtrado[index - 1]
@@ -139,6 +217,8 @@ export default function CurvaBiomassa({
             peso,
 
             biomassa,
+
+            quantidadePeixes,
 
             ganho:
               ganhoPeso > 0
@@ -306,6 +386,10 @@ export default function CurvaBiomassa({
               </th>
 
               <th className="p-3 text-left">
+                Peixes
+              </th>
+
+              <th className="p-3 text-left">
                 Biomassa
               </th>
 
@@ -338,6 +422,10 @@ export default function CurvaBiomassa({
                     {Number(
                       item.ganho
                     ).toFixed(2)} g
+                  </td>
+
+                  <td className="p-3">
+                    {item.quantidadePeixes}
                   </td>
 
                   <td className="p-3 font-bold text-green-700">
