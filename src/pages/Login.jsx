@@ -1,5 +1,6 @@
 import { useState } from "react"
 import {
+  ArrowLeft,
   Fish,
   KeyRound,
   Lock,
@@ -13,6 +14,7 @@ import { supabase } from "../lib/supabase"
 
 export default function Login({
   onLogin,
+  onVoltar,
   modoRedefinirSenha = false,
   onSenhaRedefinida,
 }) {
@@ -388,6 +390,17 @@ export default function Login({
             onSubmit={enviarLogin}
             className="w-full max-w-md space-y-7"
           >
+            {onVoltar && (
+              <button
+                type="button"
+                onClick={onVoltar}
+                className="inline-flex min-h-10 items-center gap-2 text-sm font-bold text-slate-600 hover:text-teal-700"
+              >
+                <ArrowLeft size={18} />
+                Voltar ao site
+              </button>
+            )}
+
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
                 Acesso seguro

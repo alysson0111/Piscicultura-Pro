@@ -9,6 +9,7 @@ import { supabase } from "./lib/supabase"
 
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
+import Landing from "./pages/Landing"
 
 const DIAS_TESTE = 30
 const WHATSAPP_PRO =
@@ -98,6 +99,11 @@ export default function App() {
   const [loading, setLoading] =
     useState(true)
 
+  const [mostrarLogin, setMostrarLogin] =
+    useState(
+      window.location.hash === "#login"
+    )
+
   function linkRedefinicaoSenha() {
     const params =
       new URLSearchParams(window.location.search)
@@ -112,6 +118,26 @@ export default function App() {
       params.get("type") === "recovery" ||
       hashParams.get("type") === "recovery"
     )
+  }
+
+  function abrirLogin() {
+    window.history.pushState(
+      {},
+      "",
+      "#login"
+    )
+    setMostrarLogin(true)
+    window.scrollTo(0, 0)
+  }
+
+  function voltarAoSite() {
+    window.history.pushState(
+      {},
+      "",
+      window.location.pathname
+    )
+    setMostrarLogin(false)
+    window.scrollTo(0, 0)
   }
 
   async function carregarPerfil(
@@ -344,6 +370,17 @@ export default function App() {
   }
 
   useEffect(() => {
+    function acompanharNavegacao() {
+      setMostrarLogin(
+        window.location.hash === "#login"
+      )
+    }
+
+    window.addEventListener(
+      "hashchange",
+      acompanharNavegacao
+    )
+
     async function carregarSessao() {
       setModoRedefinirSenha(
         linkRedefinicaoSenha()
@@ -387,6 +424,10 @@ export default function App() {
 
     return () => {
       listener.subscription.unsubscribe()
+      window.removeEventListener(
+        "hashchange",
+        acompanharNavegacao
+      )
     }
   }, [])
 
@@ -458,9 +499,21 @@ export default function App() {
   }
 
   if (!user) {
+    if (
+      !mostrarLogin &&
+      !modoRedefinirSenha
+    ) {
+      return (
+        <Landing
+          onAcessar={abrirLogin}
+        />
+      )
+    }
+
     return (
       <Login
         onLogin={setUser}
+        onVoltar={voltarAoSite}
         modoRedefinirSenha={modoRedefinirSenha}
         onSenhaRedefinida={() => setModoRedefinirSenha(false)}
       />

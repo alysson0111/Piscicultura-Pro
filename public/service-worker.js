@@ -1,8 +1,11 @@
-const CACHE_NAME = "piscicultura-pro-v1"
+const CACHE_NAME = "piscicultura-pro-v2"
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/app-icon.svg",
+  "/favicon-48.png",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
 ]
 
 self.addEventListener("install", (event) => {
