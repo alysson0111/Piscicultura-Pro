@@ -126,8 +126,16 @@ export default function Login({
         return
       }
 
-      alert("Usuário cadastrado!")
-      onLogin(data.user)
+      if (data.session) {
+        alert("Usuário cadastrado!")
+        onLogin(data.user)
+        return
+      }
+
+      setSenha("")
+      alert(
+        "Cadastro realizado! Enviamos uma solicitação de confirmação para o seu e-mail. Confirme o cadastro antes de entrar."
+      )
     } catch (erro) {
       console.log(erro)
     } finally {
