@@ -134,7 +134,7 @@ export default function Login({
 
       setSenha("")
       alert(
-        "Cadastro realizado! Enviamos uma solicitação de confirmação para o seu e-mail. Confirme o cadastro antes de entrar."
+        "Cadastro realizado! Você poderá utilizar o Piscicultura PRO gratuitamente por 30 dias. Após esse período, será necessário migrar para o Plano Pro para continuar usando o sistema. Enviamos uma solicitação de confirmação para o seu e-mail."
       )
     } catch (erro) {
       console.log(erro)

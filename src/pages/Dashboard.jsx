@@ -8,6 +8,7 @@ import {
   Gauge,
   LineChart,
   LogOut,
+  MessageCircle,
   Package,
   Scale,
   SlidersHorizontal,
@@ -31,6 +32,35 @@ import Crescimento from "./Crescimento"
 import PrevisaoAbate from "./PrevisaoAbate"
 import CurvaBiomassa from "./CurvaBiomassa"
 import RcaTanques from "./RcaTanques"
+
+const WHATSAPP_PRO =
+  "https://wa.me/5579998485516?text=Olá! Estou utilizando o período gratuito do Piscicultura PRO e desejo migrar para o Plano Pro."
+
+function criarDataLocal(valor) {
+  if (!valor) return null
+
+  if (
+    typeof valor === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(valor)
+  ) {
+    const [ano, mes, dia] =
+      valor.split("-").map(Number)
+
+    return new Date(ano, mes - 1, dia)
+  }
+
+  return new Date(valor)
+}
+
+function formatarData(valor) {
+  const data = criarDataLocal(valor)
+
+  if (!data || Number.isNaN(data.getTime())) {
+    return "-"
+  }
+
+  return data.toLocaleDateString("pt-BR")
+}
 
 export default function Dashboard({
   user,
@@ -120,6 +150,32 @@ export default function Dashboard({
   const abaAtual =
     menu.find((item) => item.valor === aba) ||
     menu[0]
+
+  const plano =
+    perfil?.tipo_usuario === "root" ||
+    perfil?.tipo_usuario === "parceiro" ||
+    perfil?.status_pagamento === "isento"
+      ? "isento"
+      : perfil?.plano || "pro"
+
+  const fimDoTeste =
+    criarDataLocal(
+      perfil?.teste_termina_em
+    )
+
+  const diasRestantesTeste =
+    fimDoTeste
+      ? Math.max(
+          0,
+          Math.ceil(
+            (
+              fimDoTeste.getTime() -
+              new Date().getTime()
+            ) /
+            (1000 * 60 * 60 * 24)
+          )
+        )
+      : 0
 
   function avisoMensalidade() {
     if (
@@ -224,15 +280,61 @@ export default function Dashboard({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 sm:px-4">
-                <span className="font-medium text-slate-900">
-                  Usuário:
-                </span>
-                {" "}
-                <span className="break-all">
-                  {user?.email}
-                </span>
+                <div>
+                  <span className="font-medium text-slate-900">
+                    Usuário:
+                  </span>
+                  {" "}
+                  <span className="break-all">
+                    {user?.email}
+                  </span>
+                </div>
+
+                {plano === "teste" && (
+                  <div className="mt-2 border-t border-slate-200 pt-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-amber-700">
+                        Plano gratuito
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {diasRestantesTeste} dia{diasRestantesTeste === 1 ? "" : "s"} restante{diasRestantesTeste === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Gratuito até {formatarData(perfil?.teste_termina_em)}
+                    </p>
+                    <a
+                      href={encodeURI(WHATSAPP_PRO)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      <MessageCircle size={15} />
+                      Migrar para o Plano Pro
+                    </a>
+                  </div>
+                )}
+
+                {plano === "pro" && (
+                  <div className="mt-2 border-t border-slate-200 pt-2">
+                    <p className="font-bold text-emerald-700">
+                      Plano Pro
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Vencimento: {formatarData(perfil?.data_vencimento)}
+                    </p>
+                  </div>
+                )}
+
+                {plano === "isento" && (
+                  <div className="mt-2 border-t border-slate-200 pt-2">
+                    <p className="font-bold text-teal-700">
+                      Plano isento
+                    </p>
+                  </div>
+                )}
               </div>
 
               <button
