@@ -12,6 +12,8 @@ export default function Parametros({ user }) {
   const [nitrato, setNitrato] = useState("")
   const [dureza, setDureza] = useState("")
   const [ph, setPh] = useState("")
+  const [temperatura, setTemperatura] = useState("")
+  const [oxigenio, setOxigenio] = useState("")
   const [outros, setOutros] = useState("")
 
   const [loading, setLoading] = useState(false)
@@ -75,6 +77,8 @@ export default function Parametros({ user }) {
       nitrato: Number(nitrato || 0),
       dureza: Number(dureza || 0),
       ph: Number(ph || 0),
+      temperatura: Number(temperatura || 0),
+      oxigenio_dissolvido: Number(oxigenio || 0),
       outros,
     }
 
@@ -111,6 +115,8 @@ export default function Parametros({ user }) {
     setNitrato(item.nitrato || "")
     setDureza(item.dureza || "")
     setPh(item.ph || "")
+    setTemperatura(item.temperatura || "")
+    setOxigenio(item.oxigenio_dissolvido || "")
     setOutros(item.outros || "")
 
     window.scrollTo({
@@ -128,6 +134,8 @@ export default function Parametros({ user }) {
     setNitrato("")
     setDureza("")
     setPh("")
+    setTemperatura("")
+    setOxigenio("")
     setOutros("")
   }
 
@@ -253,6 +261,30 @@ export default function Parametros({ user }) {
           />
         </div>
 
+        <div>
+          <label className="font-bold">Temperatura</label>
+          <input
+            type="number"
+            step="0.01"
+            value={temperatura}
+            onChange={(e) => setTemperatura(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            placeholder="°C"
+          />
+        </div>
+
+        <div>
+          <label className="font-bold">Oxigênio dissolvido</label>
+          <input
+            type="number"
+            step="0.01"
+            value={oxigenio}
+            onChange={(e) => setOxigenio(e.target.value)}
+            className="w-full border p-3 rounded-xl mt-2"
+            placeholder="mg/L"
+          />
+        </div>
+
         <div className="md:col-span-2">
           <label className="font-bold">Outros</label>
           <input
@@ -300,6 +332,8 @@ export default function Parametros({ user }) {
               <th className="p-3 text-left">Nitrato</th>
               <th className="p-3 text-left">Dureza</th>
               <th className="p-3 text-left">pH</th>
+              <th className="p-3 text-left">Temperatura</th>
+              <th className="p-3 text-left">Oxigênio</th>
               <th className="p-3 text-left">Outros</th>
               <th className="p-3 text-left">Ações</th>
             </tr>
@@ -316,6 +350,12 @@ export default function Parametros({ user }) {
                 <td className="p-3">{formatar(item.dureza)}</td>
                 <td className="p-3 font-bold text-blue-700">
                   {formatar(item.ph)}
+                </td>
+                <td className="p-3">
+                  {formatar(item.temperatura)} °C
+                </td>
+                <td className="p-3">
+                  {formatar(item.oxigenio_dissolvido)} mg/L
                 </td>
                 <td className="p-3 min-w-[220px]">{item.outros || "-"}</td>
                 <td className="p-3">

@@ -8,9 +8,17 @@ create table if not exists public.parametros (
   nitrato numeric default 0,
   dureza numeric default 0,
   ph numeric default 0,
+  temperatura numeric default 0,
+  oxigenio_dissolvido numeric default 0,
   outros text,
   created_at timestamptz not null default now()
 );
+
+alter table public.parametros
+add column if not exists temperatura numeric default 0;
+
+alter table public.parametros
+add column if not exists oxigenio_dissolvido numeric default 0;
 
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on public.parametros to authenticated;

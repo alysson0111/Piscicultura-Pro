@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  Wheat,
   Wrench,
 } from "lucide-react"
 
@@ -32,6 +33,7 @@ import Crescimento from "./Crescimento"
 import PrevisaoAbate from "./PrevisaoAbate"
 import CurvaBiomassa from "./CurvaBiomassa"
 import RcaTanques from "./RcaTanques"
+import Arracoamento from "./Arracoamento"
 
 const WHATSAPP_PRO =
   "https://wa.me/5579998485516?text=Olá! Estou utilizando o período gratuito do Piscicultura PRO e desejo migrar para o Plano Pro."
@@ -119,6 +121,11 @@ export default function Dashboard({
       nome: "Parâmetros",
       valor: "parametros",
       icon: SlidersHorizontal,
+    },
+    {
+      nome: "Arraçoamento",
+      valor: "arracoamento",
+      icon: Wheat,
     },
     {
       nome: "Crescimento",
@@ -401,6 +408,7 @@ export default function Dashboard({
           {aba === "estoque" && <EstoqueRacao user={user} />}
           {aba === "manutencao" && <Manutencao user={user} />}
           {aba === "parametros" && <Parametros user={user} />}
+          {aba === "arracoamento" && <Arracoamento user={user} />}
           {aba === "crescimento" && <Crescimento user={user} />}
           {aba === "previsao" && <PrevisaoAbate user={user} />}
           {aba === "curva" && <CurvaBiomassa user={user} />}

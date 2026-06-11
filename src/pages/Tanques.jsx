@@ -17,6 +17,9 @@ export default function Tanques({
   const [tipo, setTipo] =
     useState("")
 
+  const [sistemaProducao, setSistemaProducao] =
+    useState("RAS")
+
   const [produto, setProduto] =
     useState("Tilápia")
 
@@ -249,6 +252,9 @@ export default function Tanques({
 
             tipo,
 
+            sistema_producao:
+              sistemaProducao,
+
             produto,
 
             volume:
@@ -318,6 +324,9 @@ export default function Tanques({
               nome,
 
               tipo,
+
+              sistema_producao:
+                sistemaProducao,
 
               produto,
 
@@ -395,6 +404,10 @@ export default function Tanques({
 
     setTipo(item.tipo)
 
+    setSistemaProducao(
+      item.sistema_producao || "RAS"
+    )
+
     setProduto(
       item.produto
     )
@@ -446,6 +459,8 @@ export default function Tanques({
     setNome("")
 
     setTipo("")
+
+    setSistemaProducao("RAS")
 
     setProduto(
       "Tilápia"
@@ -670,7 +685,7 @@ export default function Tanques({
         <div>
 
           <label className="font-bold">
-            Tipo
+            Tipo de Tanque
           </label>
 
           <select
@@ -714,6 +729,40 @@ export default function Tanques({
 
             <option value="Ferrocimento">
               Ferrocimento
+            </option>
+
+          </select>
+
+        </div>
+
+        {/* SISTEMA DE PRODUÇÃO */}
+        <div>
+
+          <label className="font-bold">
+            Tipo de Sistema
+          </label>
+
+          <select
+            value={sistemaProducao}
+            onChange={(e) =>
+              setSistemaProducao(
+                e.target.value
+              )
+            }
+            className="w-full border p-3 rounded-xl mt-2"
+            required
+          >
+
+            <option value="RAS">
+              RAS
+            </option>
+
+            <option value="Tanque-rede">
+              Tanque-rede
+            </option>
+
+            <option value="Tanque escavado">
+              Tanque escavado
             </option>
 
           </select>
@@ -971,7 +1020,11 @@ export default function Tanques({
               </th>
 
               <th className="p-3 text-left">
-                Tipo
+                Tipo de Tanque
+              </th>
+
+              <th className="p-3 text-left">
+                Sistema
               </th>
 
               <th className="p-3 text-left">
@@ -1043,6 +1096,10 @@ export default function Tanques({
 
                 <td className="p-3">
                   {item.tipo}
+                </td>
+
+                <td className="p-3 font-semibold text-teal-700">
+                  {item.sistema_producao || "Não informado"}
                 </td>
 
                 <td className="p-3">

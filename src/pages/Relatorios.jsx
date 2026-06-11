@@ -6,6 +6,9 @@ import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 
 export default function Relatorios({ user }) {
+  const PESO_META = 900
+  const MS_DIA = 1000 * 60 * 60 * 24
+
   const [tanqueSelecionado, setTanqueSelecionado] = useState("todos")
   const [tanques, setTanques] = useState([])
   const [biometrias, setBiometrias] = useState([])
@@ -49,6 +52,188 @@ export default function Relatorios({ user }) {
 
   function normalizar(texto) {
     return String(texto || "").trim().toLowerCase()
+  }
+
+  function dataLocal(data) {
+    if (!data) return null
+
+    const valor =
+      String(data).includes("T")
+        ? new Date(data)
+        : new Date(`${data}T00:00:00`)
+
+    if (Number.isNaN(valor.getTime())) {
+      return null
+    }
+
+    return new Date(
+      valor.getFullYear(),
+      valor.getMonth(),
+      valor.getDate()
+    )
+  }
+
+  function diferencaDias(inicio, fim) {
+    const dataInicio = dataLocal(inicio)
+    const dataFim = dataLocal(fim)
+
+    if (!dataInicio || !dataFim) return 0
+
+    return Math.max(
+      0,
+      Math.floor(
+        (dataFim - dataInicio) / MS_DIA
+      )
+    )
+  }
+
+  function faixaEsperada(diasCultivo) {
+    const referencias = [
+      { dias: 0, minimo: 0, maximo: 0 },
+      { dias: 30, minimo: 5, maximo: 20 },
+      { dias: 60, minimo: 30, maximo: 80 },
+      { dias: 90, minimo: 100, maximo: 200 },
+      { dias: 120, minimo: 250, maximo: 400 },
+      { dias: 150, minimo: 500, maximo: 700 },
+      { dias: 180, minimo: 700, maximo: 900 },
+      { dias: 210, minimo: 900, maximo: 1100 },
+    ]
+
+    if (diasCultivo >= 210) {
+      return referencias[
+        referencias.length - 1
+      ]
+    }
+
+    const indiceSuperior =
+      referencias.findIndex(
+        (referencia) =>
+          diasCultivo <= referencia.dias
+      )
+
+    const superior =
+      referencias[indiceSuperior]
+
+    const inferior =
+      referencias[
+        Math.max(0, indiceSuperior - 1)
+      ]
+
+    const intervalo =
+      superior.dias - inferior.dias
+
+    const progresso =
+      intervalo > 0
+        ? (
+            diasCultivo -
+            inferior.dias
+          ) / intervalo
+        : 0
+
+    return {
+      dias: diasCultivo,
+      minimo:
+        inferior.minimo +
+        (
+          superior.minimo -
+          inferior.minimo
+        ) * progresso,
+      maximo:
+        inferior.maximo +
+        (
+          superior.maximo -
+          inferior.maximo
+        ) * progresso,
+    }
+  }
+
+  function analisarBiometria(biometria, lote) {
+    const pesoAtual =
+      Number(biometria.peso_medio || 0)
+
+    const faltaMeta =
+      Math.max(0, PESO_META - pesoAtual)
+
+    if (!lote?.data_povoamento) {
+      return {
+        diasCultivo: null,
+        faixaEsperada: null,
+        faltaMeta,
+        status: "Sem povoamento",
+        recomendacao:
+          "Cadastre a data de povoamento do lote.",
+        cor: "bg-slate-100 text-slate-700",
+      }
+    }
+
+    const diasCultivo =
+      Math.max(
+        1,
+        diferencaDias(
+          lote.data_povoamento,
+          biometria.data_biometria
+        )
+      )
+
+    const faixa =
+      faixaEsperada(diasCultivo)
+
+    const faixaTexto =
+      `${moeda(faixa.minimo)} a ${moeda(faixa.maximo)} g`
+
+    if (pesoAtual > faixa.maximo) {
+      return {
+        diasCultivo,
+        faixaEsperada: faixaTexto,
+        faltaMeta,
+        status: "Acima do esperado",
+        recomendacao:
+          `${moeda(pesoAtual - faixa.maximo)} g acima do limite superior da faixa.`,
+        cor: "bg-blue-100 text-blue-800",
+      }
+    }
+
+    if (pesoAtual >= faixa.minimo) {
+      return {
+        diasCultivo,
+        faixaEsperada: faixaTexto,
+        faltaMeta,
+        status: "Dentro do esperado",
+        recomendacao:
+          "O peso está dentro da faixa esperada para este período.",
+        cor: "bg-emerald-100 text-emerald-800",
+      }
+    }
+
+    const faltaFaixa =
+      faixa.minimo - pesoAtual
+
+    const desempenhoMinimo =
+      faixa.minimo > 0
+        ? pesoAtual / faixa.minimo
+        : 1
+
+    if (desempenhoMinimo >= 0.85) {
+      return {
+        diasCultivo,
+        faixaEsperada: faixaTexto,
+        faltaMeta,
+        status: "Atenção",
+        recomendacao:
+          `Faltam ${moeda(faltaFaixa)} g para alcançar o mínimo esperado no período.`,
+        cor: "bg-yellow-100 text-yellow-800",
+      }
+    }
+
+    return {
+      diasCultivo,
+      faixaEsperada: faixaTexto,
+      faltaMeta,
+      status: "Pode melhorar",
+      recomendacao:
+        `Faltam ${moeda(faltaFaixa)} g para alcançar o mínimo esperado. Revise alimentação, qualidade da água e manejo.`,
+      cor: "bg-red-100 text-red-700",
+    }
   }
 
   async function carregarDados() {
@@ -277,10 +462,64 @@ export default function Relatorios({ user }) {
 
       // Datas crescentes de baixo para cima:
       // mais antiga embaixo, mais recente em cima
-      const biometriasOrdenadas = [...biometriaFiltrada].sort(
-        (a, b) =>
-          new Date(b.data_biometria) - new Date(a.data_biometria)
-      )
+      const biometriasOrdenadas =
+        [...biometriaFiltrada]
+          .sort(
+            (a, b) =>
+              new Date(b.data_biometria) -
+              new Date(a.data_biometria)
+          )
+          .map((item) => {
+            const dataBiometria =
+              dataLocal(item.data_biometria)
+
+            const lotesDoTanque =
+              lotesFiltrados
+                .filter(
+                  (lote) =>
+                    normalizar(lote.tanque) ===
+                    normalizar(item.tanque)
+                )
+                .sort(
+                  (a, b) =>
+                    new Date(
+                      b.data_povoamento ||
+                      b.created_at ||
+                      0
+                    ) -
+                    new Date(
+                      a.data_povoamento ||
+                      a.created_at ||
+                      0
+                    )
+                )
+
+            const lote =
+              lotesDoTanque.find(
+                (registro) => {
+                  const povoamento =
+                    dataLocal(
+                      registro.data_povoamento
+                    )
+
+                  return (
+                    !povoamento ||
+                    !dataBiometria ||
+                    povoamento <= dataBiometria
+                  )
+                }
+              ) ||
+              lotesDoTanque[0]
+
+            return {
+              ...item,
+              analise:
+                analisarBiometria(
+                  item,
+                  lote
+                ),
+            }
+          })
 
       setBiometrias(biometriasOrdenadas)
     } catch (erro) {
@@ -471,6 +710,9 @@ export default function Relatorios({ user }) {
 
       <div className="bg-white rounded-2xl shadow p-6 overflow-auto">
         <h2 className="text-2xl font-bold mb-4">📋 Histórico Biometria</h2>
+        <p className="mb-4 max-w-4xl text-sm leading-6 text-slate-600">
+          A análise calcula proporcionalmente a faixa esperada na data exata da biometria, usando como referência os períodos de 30, 60, 90, 120, 150, 180 e 210 dias após o povoamento.
+        </p>
 
         <table className="w-full">
           <thead>
@@ -480,6 +722,10 @@ export default function Relatorios({ user }) {
               <th className="p-3 text-left">Peixes pesados</th>
               <th className="p-3 text-left">Peso médio</th>
               <th className="p-3 text-left">Biomassa da amostra</th>
+              <th className="p-3 text-left">Dias de cultivo</th>
+              <th className="p-3 text-left">Faixa esperada</th>
+              <th className="p-3 text-left">Análise inteligente</th>
+              <th className="p-3 text-left">Falta para 900 g</th>
             </tr>
           </thead>
 
@@ -498,6 +744,27 @@ export default function Relatorios({ user }) {
                       item.peso_total ||
                       Number(item.biomassa || 0) * 1000
                     )
+                  )}
+                </td>
+                <td className="p-3">
+                  {item.analise?.diasCultivo ?? "-"}
+                </td>
+                <td className="p-3">
+                  {item.analise?.faixaEsperada || "-"}
+                </td>
+                <td className="min-w-64 p-3">
+                  <span
+                    className={`inline-flex rounded-md px-2 py-1 text-xs font-bold ${item.analise?.cor}`}
+                  >
+                    {item.analise?.status}
+                  </span>
+                  <p className="mt-2 whitespace-normal text-xs leading-5 text-slate-600">
+                    {item.analise?.recomendacao}
+                  </p>
+                </td>
+                <td className="p-3">
+                  {formatarPeso(
+                    item.analise?.faltaMeta
                   )}
                 </td>
               </tr>
