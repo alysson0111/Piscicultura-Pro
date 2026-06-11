@@ -50,7 +50,8 @@ for each row
 execute function public.calcular_valor_final_profile();
 
 grant usage on schema public to anon, authenticated;
-grant select, insert, update on public.profiles to authenticated;
+grant select, update on public.profiles to authenticated;
+revoke insert on public.profiles from anon, authenticated;
 
 alter table public.profiles enable row level security;
 
@@ -88,12 +89,6 @@ on public.profiles
 for select
 to authenticated
 using (public.is_root());
-
-create policy "Usuarios podem criar o proprio perfil"
-on public.profiles
-for insert
-to authenticated
-with check (auth.uid() = user_id);
 
 create policy "Root pode atualizar perfis"
 on public.profiles
