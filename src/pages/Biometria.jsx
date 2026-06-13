@@ -42,6 +42,22 @@ export default function Biometria({ user }) {
     return `${formatar(gramas)} g`
   }
 
+  function formatarData(data) {
+    if (!data) return "-"
+
+    const valor =
+      String(data).split("T")[0]
+
+    const [ano, mes, dia] =
+      valor.split("-")
+
+    if (!ano || !mes || !dia) {
+      return valor
+    }
+
+    return `${dia}/${mes}/${ano}`
+  }
+
   async function carregarDados() {
     try {
       // TANQUES
@@ -444,10 +460,8 @@ export default function Biometria({ user }) {
               >
 
                 <td className="p-3">
-                  {new Date(
+                  {formatarData(
                     item.data_biometria
-                  ).toLocaleDateString(
-                    "pt-BR"
                   )}
                 </td>
 
