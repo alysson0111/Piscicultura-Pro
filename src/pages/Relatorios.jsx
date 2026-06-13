@@ -47,7 +47,32 @@ export default function Relatorios({ user }) {
 
   function dataBR(data) {
     if (!data) return "-"
-    return new Date(data).toLocaleDateString("pt-BR")
+
+    const valor = String(data)
+    const dataSemHorario =
+      valor.split("T")[0]
+
+    if (
+      /^\d{4}-\d{2}-\d{2}$/.test(
+        dataSemHorario
+      )
+    ) {
+      const [ano, mes, dia] =
+        dataSemHorario.split("-")
+
+      return `${dia}/${mes}/${ano}`
+    }
+
+    const dataConvertida =
+      new Date(valor)
+
+    return Number.isNaN(
+      dataConvertida.getTime()
+    )
+      ? valor
+      : dataConvertida.toLocaleDateString(
+          "pt-BR"
+        )
   }
 
   function normalizar(texto) {
