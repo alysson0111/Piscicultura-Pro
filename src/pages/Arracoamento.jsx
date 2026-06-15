@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 const TABELA_ARRACOAMENTO = [
   { ate: 5, taxa: 25, tratos: 6, proteina: 55, granulometria: "Farelada" },
@@ -78,15 +79,7 @@ function formatar(valor, casas = 2) {
 }
 
 function dataBR(data) {
-  if (!data) return "-"
-
-  const valor = String(data).includes("T")
-    ? new Date(data)
-    : new Date(`${data}T00:00:00`)
-
-  return Number.isNaN(valor.getTime())
-    ? "-"
-    : valor.toLocaleDateString("pt-BR")
+  return formatarDataBR(data)
 }
 
 function recomendacaoPorPeso(pesoMedio) {

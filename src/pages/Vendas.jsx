@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Vendas({ user }) {
   const [tanque, setTanque] = useState("")
@@ -245,7 +246,7 @@ export default function Vendas({ user }) {
             {dados.map((item) => (
               <tr key={item.id} className="border-b hover:bg-slate-50">
                 <td className="p-3">
-                  {new Date(item.data_venda).toLocaleDateString("pt-BR")}
+                  {formatarDataBR(item.data_venda)}
                 </td>
 
                 <td className="p-3">{item.tanque}</td>

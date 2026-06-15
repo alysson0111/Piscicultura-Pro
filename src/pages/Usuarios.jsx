@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Usuarios({
   user,
@@ -94,11 +95,7 @@ export default function Usuarios({
   }
 
   function formatarData(data) {
-    if (!data) return "-"
-
-    return new Date(data).toLocaleDateString(
-      "pt-BR"
-    )
+    return formatarDataBR(data)
   }
 
   async function carregarUsuarios() {

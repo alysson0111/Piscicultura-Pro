@@ -5,6 +5,7 @@ import {
 
 import { supabase }
 from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Crescimento({
   user,
@@ -46,15 +47,7 @@ export default function Crescimento({
   }
 
   function dataBR(data) {
-    if (!data) return "-"
-
-    if (data instanceof Date) {
-      return data.toLocaleDateString("pt-BR")
-    }
-
-    return new Date(
-      `${data}T00:00:00`
-    ).toLocaleDateString("pt-BR")
+    return formatarDataBR(data)
   }
 
   async function carregarDados() {

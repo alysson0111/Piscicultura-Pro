@@ -34,6 +34,7 @@ import PrevisaoAbate from "./PrevisaoAbate"
 import CurvaBiomassa from "./CurvaBiomassa"
 import RcaTanques from "./RcaTanques"
 import Arracoamento from "./Arracoamento"
+import { formatarDataBR } from "../utils/datas"
 
 const WHATSAPP_PRO =
   "https://wa.me/5579998485516?text=Olá! Estou utilizando o período gratuito do Piscicultura PRO e desejo migrar para o Plano Pro."
@@ -55,13 +56,7 @@ function criarDataLocal(valor) {
 }
 
 function formatarData(valor) {
-  const data = criarDataLocal(valor)
-
-  if (!data || Number.isNaN(data.getTime())) {
-    return "-"
-  }
-
-  return data.toLocaleDateString("pt-BR")
+  return formatarDataBR(valor)
 }
 
 export default function Dashboard({

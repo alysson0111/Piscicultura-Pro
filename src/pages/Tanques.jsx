@@ -5,6 +5,7 @@ import {
 
 import { supabase }
 from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Tanques({
   user,
@@ -589,23 +590,7 @@ export default function Tanques({
   function dataBR(
     data
   ) {
-    if (!data) return "-"
-
-    const [
-      ano,
-      mes,
-      dia,
-    ] = String(data).split("-")
-
-    if (
-      !ano ||
-      !mes ||
-      !dia
-    ) {
-      return data
-    }
-
-    return `${dia}/${mes}/${ano}`
+    return formatarDataBR(data)
   }
 
   useEffect(() => {

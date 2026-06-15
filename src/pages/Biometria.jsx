@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Biometria({ user }) {
   const [tanques, setTanques] = useState([])
@@ -43,19 +44,7 @@ export default function Biometria({ user }) {
   }
 
   function formatarData(data) {
-    if (!data) return "-"
-
-    const valor =
-      String(data).split("T")[0]
-
-    const [ano, mes, dia] =
-      valor.split("-")
-
-    if (!ano || !mes || !dia) {
-      return valor
-    }
-
-    return `${dia}/${mes}/${ano}`
+    return formatarDataBR(data)
   }
 
   async function carregarDados() {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function PrevisaoAbate({
   user,
@@ -55,11 +56,9 @@ export default function PrevisaoAbate({
   }
 
   function dataBR(data) {
-    if (!data || data === "-") return "-"
+    if (data === "-") return "-"
 
-    return new Date(
-      `${data}T00:00:00`
-    ).toLocaleDateString("pt-BR")
+    return formatarDataBR(data)
   }
 
   function calcularBiomassaPorData(

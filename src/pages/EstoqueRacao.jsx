@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Estoque({ user }) {
   const [produto, setProduto] = useState("")
@@ -30,8 +31,7 @@ export default function Estoque({ user }) {
   }
 
   function dataBR(data) {
-    if (!data) return "-"
-    return new Date(data).toLocaleDateString("pt-BR")
+    return formatarDataBR(data)
   }
 
   async function carregarDados() {

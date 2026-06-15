@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../lib/supabase"
+import { formatarDataBR } from "../utils/datas"
 
 export default function Parametros({ user }) {
   const [tanques, setTanques] = useState([])
@@ -27,13 +28,7 @@ export default function Parametros({ user }) {
   }
 
   function dataBR(data) {
-    if (!data) return "-"
-
-    const [ano, mes, dia] = String(data).split("-")
-
-    if (!ano || !mes || !dia) return data
-
-    return `${dia}/${mes}/${ano}`
+    return formatarDataBR(data)
   }
 
   async function carregarDados() {
