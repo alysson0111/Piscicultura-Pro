@@ -87,22 +87,25 @@ export default function Relatorios({ user }) {
     )
   }
 
-  function faixaEsperada(diasCultivo) {
+  function pesoEsperadoNoDia(diasCultivo) {
     const referencias = [
-      { dias: 0, minimo: 0, maximo: 0 },
-      { dias: 30, minimo: 5, maximo: 20 },
-      { dias: 60, minimo: 30, maximo: 80 },
-      { dias: 90, minimo: 100, maximo: 200 },
-      { dias: 120, minimo: 250, maximo: 400 },
-      { dias: 150, minimo: 500, maximo: 700 },
-      { dias: 180, minimo: 700, maximo: 900 },
-      { dias: 210, minimo: 900, maximo: 1100 },
+      { dias: 0, peso: 3 },
+      { dias: 30, peso: 20 },
+      { dias: 60, peso: 60 },
+      { dias: 90, peso: 140 },
+      { dias: 120, peso: 250 },
+      { dias: 150, peso: 400 },
+      { dias: 180, peso: 580 },
+      { dias: 210, peso: 750 },
+      { dias: 240, peso: 900 },
     ]
 
-    if (diasCultivo >= 210) {
-      return referencias[
-        referencias.length - 1
-      ]
+    if (diasCultivo <= 0) {
+      return referencias[0].peso
+    }
+
+    if (diasCultivo >= 240) {
+      return referencias[referencias.length - 1].peso
     }
 
     const indiceSuperior =
@@ -114,10 +117,7 @@ export default function Relatorios({ user }) {
     const superior =
       referencias[indiceSuperior]
 
-    const inferior =
-      referencias[
-        Math.max(0, indiceSuperior - 1)
-      ]
+    const inferior = referencias[indiceSuperior - 1]
 
     const intervalo =
       superior.dias - inferior.dias
@@ -130,21 +130,9 @@ export default function Relatorios({ user }) {
           ) / intervalo
         : 0
 
-    return {
-      dias: diasCultivo,
-      minimo:
-        inferior.minimo +
-        (
-          superior.minimo -
-          inferior.minimo
-        ) * progresso,
-      maximo:
-        inferior.maximo +
-        (
-          superior.maximo -
-          inferior.maximo
-        ) * progresso,
-    }
+    return inferior.peso +
+      (superior.peso - inferior.peso) *
+      progresso
   }
 
   function analisarBiometria(biometria, lote) {
@@ -157,7 +145,7 @@ export default function Relatorios({ user }) {
     if (!lote?.data_povoamento) {
       return {
         diasCultivo: null,
-        faixaEsperada: null,
+        pesoEsperado: null,
         faltaMeta,
         status: "Sem povoamento",
         recomendacao:
@@ -168,70 +156,72 @@ export default function Relatorios({ user }) {
 
     const diasCultivo =
       Math.max(
-        1,
+        0,
         diferencaDias(
           lote.data_povoamento,
           biometria.data_biometria
         )
       )
 
-    const faixa =
-      faixaEsperada(diasCultivo)
+    const pesoEsperado =
+      pesoEsperadoNoDia(diasCultivo)
 
-    const faixaTexto =
-      `${moeda(faixa.minimo)} a ${moeda(faixa.maximo)} g`
+    const diferenca =
+      pesoAtual - pesoEsperado
 
-    if (pesoAtual > faixa.maximo) {
+    const desempenho =
+      pesoEsperado > 0
+        ? pesoAtual / pesoEsperado
+        : 1
+
+    if (desempenho > 1.1) {
       return {
         diasCultivo,
-        faixaEsperada: faixaTexto,
+        pesoEsperado,
         faltaMeta,
         status: "Acima do esperado",
         recomendacao:
-          `${moeda(pesoAtual - faixa.maximo)} g acima do limite superior da faixa.`,
+          `${moeda(diferenca)} g acima do peso esperado para este dia.`,
         cor: "bg-blue-100 text-blue-800",
       }
     }
 
-    if (pesoAtual >= faixa.minimo) {
+    if (desempenho >= 0.9) {
       return {
         diasCultivo,
-        faixaEsperada: faixaTexto,
+        pesoEsperado,
         faltaMeta,
         status: "Dentro do esperado",
         recomendacao:
-          "O peso está dentro da faixa esperada para este período.",
+          diferenca >= 0
+            ? `${moeda(diferenca)} g acima do peso esperado para este dia.`
+            : `${moeda(Math.abs(diferenca))} g abaixo do peso esperado, dentro da tolerância de 10%.`,
         cor: "bg-emerald-100 text-emerald-800",
       }
     }
 
-    const faltaFaixa =
-      faixa.minimo - pesoAtual
+    const faltaEsperado =
+      pesoEsperado - pesoAtual
 
-    const desempenhoMinimo =
-      faixa.minimo > 0
-        ? pesoAtual / faixa.minimo
-        : 1
-
-    if (desempenhoMinimo >= 0.85) {
+    if (desempenho >= 0.8) {
       return {
         diasCultivo,
-        faixaEsperada: faixaTexto,
+        pesoEsperado,
         faltaMeta,
         status: "Atenção",
         recomendacao:
-          `Faltam ${moeda(faltaFaixa)} g para alcançar o mínimo esperado no período.`,
+          `Faltam ${moeda(faltaEsperado)} g para alcançar o peso esperado neste dia.`,
         cor: "bg-yellow-100 text-yellow-800",
       }
     }
 
     return {
       diasCultivo,
-      faixaEsperada: faixaTexto,
+      pesoEsperado,
       faltaMeta,
       status: "Pode melhorar",
       recomendacao:
-        `Faltam ${moeda(faltaFaixa)} g para alcançar o mínimo esperado. Revise alimentação, qualidade da água e manejo.`,
+        `Faltam ${moeda(faltaEsperado)} g para alcançar o peso esperado. Revise alimentação, qualidade da água e manejo.`,
       cor: "bg-red-100 text-red-700",
     }
   }
@@ -711,7 +701,7 @@ export default function Relatorios({ user }) {
       <div className="bg-white rounded-2xl shadow p-6 overflow-auto">
         <h2 className="text-2xl font-bold mb-4">📋 Histórico Biometria</h2>
         <p className="mb-4 max-w-4xl text-sm leading-6 text-slate-600">
-          A análise calcula proporcionalmente a faixa esperada na data exata da biometria, usando como referência os períodos de 30, 60, 90, 120, 150, 180 e 210 dias após o povoamento.
+          O peso esperado é calculado para o dia exato da biometria, por interpolação entre os marcos de 0 a 240 dias após o povoamento.
         </p>
 
         <table className="w-full">
@@ -723,7 +713,7 @@ export default function Relatorios({ user }) {
               <th className="p-3 text-left">Peso médio</th>
               <th className="p-3 text-left">Biomassa da amostra</th>
               <th className="p-3 text-left">Dias de cultivo</th>
-              <th className="p-3 text-left">Faixa esperada</th>
+              <th className="p-3 text-left">Peso esperado</th>
               <th className="p-3 text-left">Análise inteligente</th>
               <th className="p-3 text-left">Falta para 900 g</th>
             </tr>
@@ -750,7 +740,11 @@ export default function Relatorios({ user }) {
                   {item.analise?.diasCultivo ?? "-"}
                 </td>
                 <td className="p-3">
-                  {item.analise?.faixaEsperada || "-"}
+                  {item.analise?.pesoEsperado == null
+                    ? "-"
+                    : formatarPeso(
+                        item.analise.pesoEsperado
+                      )}
                 </td>
                 <td className="min-w-64 p-3">
                   <span
