@@ -22,6 +22,7 @@ export default function Relatorios({ user }) {
     mortalidade: 0,
     custos: 0,
     vendas: 0,
+    kilosVendidos: 0,
     lucro: 0,
     racao: 0,
     valorRacao: 0,
@@ -367,6 +368,11 @@ export default function Relatorios({ user }) {
         0
       )
 
+      const totalKilosVendidos = vendasFiltradas.reduce(
+        (acc, item) => acc + Number(item.peso || 0),
+        0
+      )
+
       const totalRacao = custosFiltrados
         .filter((item) => normalizar(item.categoria) === "ração")
         .reduce(
@@ -434,6 +440,7 @@ export default function Relatorios({ user }) {
         mortalidade: totalMortalidade,
         custos: totalCustos,
         vendas: totalVendas,
+        kilosVendidos: totalKilosVendidos,
         lucro,
         racao: totalRacao,
         valorRacao,
@@ -542,6 +549,7 @@ export default function Relatorios({ user }) {
           `R$ ${moeda(item.valor)}`,
         ]),
         ["Vendas", "-", `R$ ${moeda(relatorio.vendas)}`],
+        ["Kg vendidos", `${moeda(relatorio.kilosVendidos)} kg`, "-"],
         ["Lucro", "-", `R$ ${moeda(relatorio.lucro)}`],
         ["Custo Total", "-", `R$ ${moeda(relatorio.custos)}`],
       ],
@@ -626,6 +634,7 @@ export default function Relatorios({ user }) {
       { Indicador: "Mortalidade", Valor: relatorio.mortalidade },
       { Indicador: "Custos", Valor: relatorio.custos },
       { Indicador: "Vendas", Valor: relatorio.vendas },
+      { Indicador: "Kg vendidos", Valor: relatorio.kilosVendidos },
       { Indicador: "Lucro", Valor: relatorio.lucro },
       { Indicador: "Ração", Valor: relatorio.racao },
       { Indicador: "RCA", Valor: relatorio.rca },
@@ -693,6 +702,7 @@ export default function Relatorios({ user }) {
         <Card titulo="Mortalidade" valor={relatorio.mortalidade} cor="bg-red-100" />
         <Card titulo="Custos" valor={`R$ ${moeda(relatorio.custos)}`} cor="bg-yellow-100" />
         <Card titulo="Vendas" valor={`R$ ${moeda(relatorio.vendas)}`} cor="bg-purple-100" />
+        <Card titulo="Kg vendidos" valor={`${moeda(relatorio.kilosVendidos)} kg`} cor="bg-lime-100" />
         <Card titulo="Lucro" valor={`R$ ${moeda(relatorio.lucro)}`} cor="bg-emerald-100" />
         <Card titulo="Ração" valor={`${moeda(relatorio.racao)} kg`} cor="bg-orange-100" />
         <Card titulo="RCA" valor={moeda(relatorio.rca)} cor="bg-cyan-100" />

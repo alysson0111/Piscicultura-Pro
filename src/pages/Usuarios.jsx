@@ -138,38 +138,57 @@ export default function Usuarios({
           )
         : null
 
+    let respostaCriacao
+
+    try {
+      respostaCriacao =
+        await supabase.functions.invoke(
+          "create-user",
+          {
+            body: {
+              nome,
+              email,
+              senha,
+              tipo_usuario:
+                tipoUsuario,
+              status_pagamento:
+                statusPagamento,
+              plano,
+              valor_mensal:
+                Number(valorMensal || 0),
+              desconto_percentual:
+                Number(descontoPercentual || 0),
+              data_vencimento:
+                vencimentoPro,
+              data_ativacao_pro:
+                ativacaoPro?.toISOString() || null,
+            },
+          }
+        )
+    } catch (erroConexao) {
+      setLoading(false)
+      alert(
+        "Não foi possível conectar ao serviço de criação de usuários. Verifique se a Edge Function create-user está implantada no Supabase e se o domínio do Supabase está acessível."
+      )
+      console.error(erroConexao)
+      return
+    }
+
     const {
       data,
       error,
-    } = await supabase.functions.invoke(
-      "create-user",
-      {
-        body: {
-          nome,
-          email,
-          senha,
-          tipo_usuario:
-            tipoUsuario,
-          status_pagamento:
-            statusPagamento,
-          plano,
-          valor_mensal:
-            Number(valorMensal || 0),
-          desconto_percentual:
-            Number(descontoPercentual || 0),
-          data_vencimento:
-            vencimentoPro,
-          data_ativacao_pro:
-            ativacaoPro?.toISOString() || null,
-        },
-      }
-    )
+    } = respostaCriacao
 
     setLoading(false)
 
     if (error) {
+      const mensagem =
+        error.message === "Failed to fetch"
+          ? "Não foi possível conectar ao serviço de criação de usuários. Verifique se a Edge Function create-user está implantada no Supabase e se o domínio do Supabase está acessível."
+          : error.message
+
       alert(
-        error.message ||
+        mensagem ||
         "Erro ao criar usuário. Confira se a Edge Function foi implantada."
       )
       return
