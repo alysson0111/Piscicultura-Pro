@@ -22,13 +22,31 @@ export default function Custos({ user }) {
     (item) => item.id === estoqueId
   )
 
+  const custoOriginal = dados.find((item) => item.id === editando)
+  const manterBaixaOriginal = Boolean(
+    custoOriginal &&
+    (custoOriginal.tipo_custo || "estoque") === "estoque" &&
+    tipoCusto === "estoque" &&
+    estoqueId === (custoOriginal.estoque_id || "") &&
+    Number(quantidadeBaixa || 0) === Number(custoOriginal.quantidade_baixa || 0)
+  )
+  const produtoOriginalIndisponivel = Boolean(
+    custoOriginal &&
+    (custoOriginal.tipo_custo || "estoque") === "estoque" &&
+    !estoque.some((item) => item.id === custoOriginal.estoque_id)
+  )
+
   const pesoTotalBaixa =
-    Number(quantidadeBaixa || 0) *
-    Number(itemEstoque?.peso_embalagem || 0)
+    manterBaixaOriginal
+      ? Number(custoOriginal.peso_total_baixa ?? custoOriginal.quantidade_racao ?? 0)
+      : Number(quantidadeBaixa || 0) *
+        Number(itemEstoque?.peso_embalagem || 0)
 
   const valorEstoque =
-    Number(quantidadeBaixa || 0) *
-    Number(itemEstoque?.valor_unitario || 0)
+    manterBaixaOriginal
+      ? Number(custoOriginal.valor_total ?? custoOriginal.valor ?? 0)
+      : Number(quantidadeBaixa || 0) *
+        Number(itemEstoque?.valor_unitario || 0)
 
   const valorTotal =
     tipoCusto === "estoque"
@@ -99,7 +117,7 @@ export default function Custos({ user }) {
     setLoading(true)
 
     if (tipoCusto === "estoque") {
-      if (!itemEstoque) {
+      if (!itemEstoque && !manterBaixaOriginal) {
         alert(
           "Selecione um produto do estoque."
         )
@@ -160,11 +178,25 @@ export default function Custos({ user }) {
       valor_total: Number(valorTotal),
     }
 
+    if (manterBaixaOriginal) {
+      // Alterar o tanque nao recalcula o peso nem o custo de uma baixa anterior.
+      for (const campo of [
+        "estoque_id", "quantidade_baixa", "peso_total_baixa",
+        "quantidade_racao", "valor_unitario", "valor", "valor_total",
+      ]) {
+        delete payload[campo]
+      }
+      if (categoria !== custoOriginal.categoria) {
+        payload.quantidade_racao = categoria === "Ração" ? pesoTotalBaixa : 0
+      }
+    }
+
     const query = editando
       ? supabase
           .from("custos")
           .update(payload)
           .eq("id", editando)
+          .eq("user_id", user.id)
       : supabase
           .from("custos")
           .insert([payload])
@@ -475,12 +507,20 @@ export default function Custos({ user }) {
                 )
               }
               className="w-full border p-3 rounded-xl mt-2"
-              required
+              required={!manterBaixaOriginal}
             >
 
               <option value="">
-                Selecione
+                {produtoOriginalIndisponivel && !custoOriginal.estoque_id
+                  ? `${custoOriginal.descricao} (baixa registrada)`
+                  : "Selecione"}
               </option>
+
+              {produtoOriginalIndisponivel && custoOriginal.estoque_id && (
+                <option value={custoOriginal.estoque_id}>
+                  {custoOriginal.descricao} (baixa registrada)
+                </option>
+              )}
 
               {estoque.map((item) => (
                 <option
@@ -525,6 +565,7 @@ export default function Custos({ user }) {
                 type="number"
                 step="0.01"
                 value={quantidadeBaixa}
+                readOnly={produtoOriginalIndisponivel && estoqueId === (custoOriginal.estoque_id || "")}
                 onChange={(e) =>
                   setQuantidadeBaixa(
                     e.target.value
